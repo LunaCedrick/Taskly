@@ -1,0 +1,9 @@
+# Firebase config — contains real API keys — never commit
+js/config.js
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
