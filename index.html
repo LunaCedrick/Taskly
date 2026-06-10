@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Document metadata -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Taskly</title>
+
+  <!-- Google Fonts - DM Sans loads before the stylesheet -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Application stylesheet -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Login view -->
+  <div id="view-login" class="view">
+    <div class="login-card">
+      <h1 class="login-title">Taskly</h1>
+      <p class="login-subtitle">Sign in to manage your tasks</p>
+      <button
+        id="btn-google-signin"
+        class="btn-primary"
+        type="button"
+        aria-label="Sign in with Google"
+      >
+        Sign in with Google
+      </button>
+      <p id="login-error" class="login-error" role="alert" hidden></p>
+    </div>
+  </div>
+
+  <!-- App view -->
+  <div id="view-app" class="view" hidden>
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <!-- Sidebar logo -->
+      <div class="sidebar-logo">
+        <span class="sidebar-app-name">Taskly</span>
+      </div>
+
+      <!-- Primary navigation -->
+      <nav class="sidebar-nav" aria-label="Main navigation">
+        <a href="#" class="nav-item nav-item--active" data-view="dashboard" aria-label="Dashboard">
+          Dashboard
+        </a>
+        <a href="#" class="nav-item" data-view="tasks" aria-label="My Tasks">
+          My Tasks
+        </a>
+      </nav>
+
+      <!-- Sidebar projects -->
+      <div class="sidebar-section-label">Projects</div>
+      <div id="sidebar-project-list" class="sidebar-project-list">
+        <!-- Rendered by ui.js -->
+      </div>
+      <button id="btn-new-project" class="btn-new-project" type="button" aria-label="Create new project">
+        + New Project
+      </button>
+
+      <!-- Sidebar user profile -->
+      <div class="sidebar-user" id="sidebar-user">
+        <img id="user-photo" class="user-photo" src="" alt="User profile photo" />
+        <div class="user-info">
+          <span id="user-name" class="user-name"></span>
+          <button id="btn-signout" class="btn-signout" type="button" aria-label="Sign out of Taskly">
+            Sign out
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main app region -->
+    <div class="main">
+      <!-- Topbar -->
+      <header class="topbar" id="topbar">
+        <button
+          class="hamburger"
+          id="btn-hamburger"
+          type="button"
+          aria-label="Toggle navigation menu"
+          aria-expanded="false"
+        >
+          &#9776;
+        </button>
+        <h1 class="topbar-title" id="topbar-title">Dashboard</h1>
+        <div class="topbar-actions">
+          <input
+            type="search"
+            id="search-input"
+            class="search-input"
+            placeholder="Search tasks..."
+            aria-label="Search tasks"
+          />
+          <button id="btn-add-task" class="btn-primary" type="button" aria-label="Add new task">
+            + Add Task
+          </button>
+          <button id="notification-bell" class="notification-bell" type="button" aria-label="Notifications">
+            &#128276;
+            <span id="notif-count" class="notification-count" aria-live="polite" hidden>0</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- Content region -->
+      <main class="content" id="main-content">
+        <section id="dashboard-view" class="content-view">
+          <!-- Rendered by ui.js in Session 6 -->
+        </section>
+
+        <section id="project-view" class="content-view" hidden>
+          <!-- Rendered by ui.js in Sessions 7-8 -->
+        </section>
+
+        <section id="settings-view" class="content-view" hidden>
+          <!-- Rendered by ui.js in Session 12 -->
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Global overlays -->
+  <div id="offline-banner" class="offline-banner" hidden role="alert">
+    Offline Mode - Changes will sync automatically
+  </div>
+
+  <!-- Notification panel -->
+  <div id="notification-panel" class="notification-panel" hidden aria-live="polite"></div>
+
+  <!-- Modal overlay -->
+  <div id="modal-overlay" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div id="modal-panel" class="modal-panel">
+      <!-- Injected by ui.js -->
+    </div>
+  </div>
+
+  <!-- Floating action button -->
+  <button id="fab-add-task" class="fab" type="button" aria-label="Add new task" hidden>+</button>
+
+  <!-- Firebase compat SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging-compat.js"></script>
+
+  <!-- Application scripts - load order is mandatory -->
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/router.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
