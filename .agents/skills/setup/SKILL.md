@@ -51,9 +51,10 @@ taskly/
 │   ├── db.js
 │   ├── ui.js
 │   └── app.js
-├── skills/
-│   └── setup/
-│       └── SKILL.md          ← this file
+├── .agents/
+│   └── skills/
+│       └── setup/
+│           └── SKILL.md          ← this file
 ├── .gitignore
 ├── config.example.js
 ├── AGENTS.md

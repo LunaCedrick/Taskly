@@ -304,7 +304,7 @@ element.innerHTML = ...
 ## 8. SESSION 3 REVIEW CHECKLIST
 
 Run this before committing. Every item must pass.
-Then run `skills/review/SKILL.md` as required by AGENTS.md §16.
+Then run `.agents/skills/review/SKILL.md` as required by AGENTS.md §16.
 
 ### router.js
 - [ ] `showView(viewName)` implemented — hides all, shows one

@@ -383,7 +383,7 @@ auth.js returns data and throws errors — nothing more.
 ## 9. SESSION 2 REVIEW CHECKLIST
 
 Run this before committing. Every item must pass.
-Then run `skills/review/SKILL.md` as required by AGENTS.md §16.
+Then run `.agents/skills/review/SKILL.md` as required by AGENTS.md §16.
 
 ### config.js
 - [ ] Real Firebase values filled in (not empty strings)
