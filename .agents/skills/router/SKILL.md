@@ -1,4 +1,7 @@
-# SKILL.md — Router
+---
+name: router
+description: Implements view switching based on auth state and user navigation.
+---
 ## Session: 3 of 17
 ## Scope: router.js — view switching · auth state · topbar title · FAB visibility
 ## References: AGENTS.md §5, §9
