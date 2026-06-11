@@ -1,4 +1,7 @@
-# SKILL.md — Review
+---
+name: review
+description: Run a full QA audit of all code produced in the current session, based on the rules in AGENTS.md
+---
 ## Session: Run after EVERY session (required by AGENTS.md §16)
 ## Scope: Full QA audit of all code produced in the current session
 ## References: AGENTS.md §2, §4, §5, §6, §8, §9, §10, §11, §12, §13, §14
