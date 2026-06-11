@@ -1185,6 +1185,11 @@ docs: update README with Vercel deployment link
 - Popup blocked → friendly error shown
 - Sign in on second device → same data appears
 
+### Auth Smoke Test Notes
+- Firebase/Auth wiring was smoke-tested in Chrome with a temporary script.
+- Confirmed: Firebase initializes, `window.auth.signInWithGoogle()` is callable, and the Firebase/Google sign-in popup opens.
+- Not yet confirmed: completing an actual Google account login and writing the profile to Firestore, because `db.js` is still a Session 4 stub.
+
 ### Manual Test Cases — CRUD
 - Create task with all fields → appears in list
 - Create task with title only → appears in list
@@ -1380,3 +1385,6 @@ Before writing AGENTS.md or any skill file, confirm:
 | 15 | Skeleton cards over spinners | Perceived performance — user sees layout form |
 | 16 | 17 skill files | Each technical concern isolated for focused Codex sessions |
 | 17 | Claude plans, Codex builds | Best tools for each job; mirrors industry AI workflow |
+| 18 | Firebase compat SDK pinned to 12.4.0 | Aligns runtime scripts with the auth session requirement |
+| 19 | Firebase SDK scripts load in head | Ensures Firebase globals exist before `js/config.js` and app modules run |
+| 20 | Firebase Auth instance named firebaseAuth | Avoids shadowing the custom `window.auth` module |

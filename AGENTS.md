@@ -284,6 +284,13 @@ taskly/
 
 Script loading order in index.html — mandatory:
 ```html
+<!-- Firebase SDK scripts load in <head>, after Google Fonts and before style.css -->
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-messaging-compat.js"></script>
+
+<!-- Application scripts load at the bottom of <body> in this order -->
 <script src="js/config.js"></script>
 <script src="js/auth.js"></script>
 <script src="js/router.js"></script>
@@ -310,6 +317,9 @@ config.js
   ❌ No functions
   ❌ No DOM access
   ❌ No fetch or Firestore calls
+  ❌ No top-level variable named auth
+     Use firebaseAuth for the Firebase Auth instance so
+     window.auth remains reserved for the custom auth module
 
 auth.js
   ✅ signInWithGoogle()
