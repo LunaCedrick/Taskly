@@ -66,14 +66,10 @@ function initRouter() {
  * @returns {void}
  */
 function hideInactiveContentViews(viewName) {
-  const viewIds = {
-    dashboard: 'dashboard-view',
-    project: 'project-view',
-    settings: 'settings-view'
-  };
+  const viewNames = ['dashboard', 'project', 'settings'];
 
-  Object.keys(viewIds).forEach((name) => {
-    const el = document.getElementById(viewIds[name]);
+  viewNames.forEach((name) => {
+    const el = document.getElementById(`view-${name}`);
 
     if (el) {
       el.hidden = name !== viewName;
