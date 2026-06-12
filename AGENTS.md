@@ -241,6 +241,14 @@ Firebase Plan: Spark (free)
 NO frameworks — no React, Vue, Bootstrap, Tailwind, jQuery.
 NO build tools — no Webpack, Vite, or bundler of any kind.
 
+### config.example.js — Style Requirement
+
+config.example.js MUST match config.js's syntax exactly —
+plain `const firebaseConfig = {...}`, no `export` keyword.
+This is a template file copied directly to create config.js;
+any ES module syntax here is misleading and inconsistent with
+the compat CDN SDK Style declared in §3.
+
 ---
 
 ## 4. FILE STRUCTURE
@@ -437,6 +445,38 @@ state.listeners = [];
 
 Failure to detach listeners causes memory leaks
 and Firestore errors on re-login. Always use this pattern.
+
+### Listener Resilience — Dashboard Collection Group Query
+
+CONFIRMED BEHAVIOR (Session 4 manual test):
+When db.deleteProject() runs its batch delete (removes a task
+document AND its parent project document in the same batch),
+any live listener from listenToDashboardTasks() may fire its
+error callback once with a transient "permission-denied" error
+— even though the delete succeeds and Firestore data is correct.
+
+This is a known Firestore SDK quirk with collection-group
+listeners reacting to batched deletes that remove an entire
+path branch at once. db.js is not at fault — its error mapping
+is working as designed (AGENTS.md §7).
+
+IMPACT: Once onSnapshot's error callback fires, Firestore stops
+delivering further updates on that listener. Left unhandled,
+the dashboard would silently stop receiving live updates after
+any project deletion.
+
+REQUIRED HANDLING — Session 13 (app.js):
+- When listenToDashboardTasks()'s error callback fires with
+  "Unable to load data. Try again.", app.js must re-subscribe:
+  call db.listenToDashboardTasks() again, replace the stored
+  unsubscribe function in state.listeners, and continue.
+- Do not surface this specific transient error to the user as
+  a persistent error banner — it self-resolves on re-subscribe.
+
+REQUIRED HANDLING — Session 6 (dashboard view):
+- If a brief "reconnecting" state is shown during re-subscribe,
+  it must follow the loading/skeleton pattern (AGENTS.md §10),
+  not the error banner pattern — this is not a user-facing error.
 
 ---
 

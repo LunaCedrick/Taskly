@@ -2,7 +2,7 @@
 // Copy this file to js/config.js and fill in your Firebase values.
 // NEVER commit js/config.js because it contains real API keys.
 
-export const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_AUTH_DOMAIN",
   projectId: "YOUR_PROJECT_ID",
