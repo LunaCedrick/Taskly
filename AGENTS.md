@@ -331,12 +331,12 @@ config.js
      window.auth remains reserved for the custom auth module
 
 auth.js
+  ✅ initAuthListener(onSignIn, onSignOut)
   ✅ signInWithGoogle()
   ✅ signOut()
-  ✅ getCurrentUser()
-  ✅ onAuthStateChanged listener (exposes to router.js)
+  ✅ onAuthStateChanged listener (exposes auth-state callback)
   ✅ requestNotificationPermission() — first login only
-  ✅ saveFCMToken(userId, token)
+  ✅ saveFcmToken(userId, token) via db.js when FCM is granted
   ❌ No DOM manipulation
   ❌ No Firestore reads beyond saving FCM token
   ❌ No application state management
@@ -352,19 +352,17 @@ router.js
 
 db.js
   ✅ createProject(userId, name)
-  ✅ getProjects(userId) — returns onSnapshot listener
+  ✅ listenToProjects(userId, callback) — returns onSnapshot unsubscribe
   ✅ updateProject(userId, projectId, data)
   ✅ deleteProject(userId, projectId)
   ✅ createTask(userId, projectId, taskData)
-  ✅ getTasks(userId, projectId) — returns onSnapshot listener
-  ✅ getDashboardTasks(userId) — collection group query
+  ✅ listenToTasks(userId, projectId, callback) — returns onSnapshot unsubscribe
+  ✅ listenToDashboardTasks(userId, callback) — collection group listener
   ✅ updateTask(userId, projectId, taskId, data)
   ✅ deleteTask(userId, projectId, taskId)
-  ✅ completeTask(userId, projectId, taskId, isDone)
   ✅ writeActivityLog(userId, event)
-  ✅ getUserProfile(userId)
   ✅ saveUserProfile(userId, profileData)
-  ✅ enableOfflinePersistence() — called once on init
+  ✅ saveFcmToken(userId, token)
   ❌ No DOM access — never touches HTML
   ❌ No UI rendering
   ❌ No application state management
@@ -436,7 +434,7 @@ const state = {
 ### Listener Cleanup Pattern — Critical
 ```javascript
 // Store every onSnapshot reference
-const unsubProjects = db.getProjects(userId, callback);
+const unsubProjects = db.listenToProjects(userId, callback);
 state.listeners.push(unsubProjects);
 
 // On sign out — detach all
@@ -468,7 +466,7 @@ any project deletion.
 
 REQUIRED HANDLING — Session 13 (app.js):
 - When listenToDashboardTasks()'s error callback fires with
-  "Unable to load data. Try again.", app.js must re-subscribe:
+  "Unable to load data. Please try again.", app.js must re-subscribe:
   call db.listenToDashboardTasks() again, replace the stored
   unsubscribe function in state.listeners, and continue.
 - Do not surface this specific transient error to the user as
@@ -631,7 +629,7 @@ Modifier  : .task-card--overdue
 ```
 Variables : currentProjectId, taskDueDate, searchQuery
 Functions : createTask, renderDashboard, handleSearch
-            signInWithGoogle, enableOfflinePersistence
+            signInWithGoogle, listenToDashboardTasks
 Constants : DEFAULT_PRIORITY, STATUS_TODO, STATUS_DONE
 State keys: user, currentProjectId, filters, listeners
 ```
