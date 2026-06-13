@@ -185,34 +185,12 @@ function listenToProjects(userId, callback) {
  * @throws {string} Human-readable error message on failure.
  */
 async function createTask(userId, projectId, taskData) {
-  const title = (taskData.title || '').trim();
-  const priority = taskData.priority || DEFAULT_PRIORITY;
-  const status = taskData.status || STATUS_TODO;
-
-  if (!title) {
-    throw 'Please enter a task title.';
-  }
-
-  if (!VALID_PRIORITIES.includes(priority) || !VALID_STATUSES.includes(status)) {
-    throw 'Something went wrong. Please try again.';
-  }
-
   try {
     const docRef = await db_firestore
       .collection('users').doc(userId)
       .collection('projects').doc(projectId)
       .collection('tasks')
-      .add({
-        title: title.slice(0, MAX_TITLE_LENGTH),
-        description: (taskData.description || '').trim(),
-        dueDate: taskData.dueDate || null,
-        priority,
-        category: (taskData.category || '').trim(),
-        status,
-        userId,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      });
+      .add(buildTaskPayload(userId, taskData));
 
     return docRef.id;
   } catch (err) {
@@ -225,8 +203,36 @@ async function createTask(userId, projectId, taskData) {
 }
 
 /**
+ * Builds validated task data for a new Firestore document.
+ * @param {string} userId - The authenticated user's UID.
+ * @param {Object} taskData - Task fields to write.
+ * @returns {Object} Firestore task payload.
+ * @throws {string} Human-readable validation message on failure.
+ */
+function buildTaskPayload(userId, taskData) {
+  const title = normalizeRequiredTitle(taskData.title || '');
+  const priority = taskData.priority || DEFAULT_PRIORITY;
+  const status = taskData.status || STATUS_TODO;
+
+  validatePriority(priority);
+  validateStatus(status);
+
+  return {
+    title,
+    description: (taskData.description || '').trim(),
+    dueDate: taskData.dueDate || null,
+    priority,
+    category: (taskData.category || '').trim(),
+    status,
+    userId,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  };
+}
+
+/**
  * Updates fields on an existing task document.
- * Preserves userId by removing it from caller-provided partial updates.
+ * Stamps userId so task writes remain valid for dashboard queries.
  * @param {string} userId - The authenticated user's UID.
  * @param {string} projectId - The parent project document ID.
  * @param {string} taskId - The task document ID.
@@ -237,8 +243,8 @@ async function createTask(userId, projectId, taskData) {
 async function updateTask(userId, projectId, taskId, data) {
   const updates = { ...data };
 
-  delete updates.userId;
   normalizeTaskUpdates(updates);
+  updates.userId = userId;
   updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
 
   try {
@@ -264,13 +270,7 @@ async function updateTask(userId, projectId, taskId, data) {
  */
 function normalizeTaskUpdates(updates) {
   if (updates.title !== undefined) {
-    const trimmedTitle = updates.title.trim();
-
-    if (!trimmedTitle) {
-      throw 'Please enter a task title.';
-    }
-
-    updates.title = trimmedTitle.slice(0, MAX_TITLE_LENGTH);
+    updates.title = normalizeRequiredTitle(updates.title);
   }
 
   if (updates.description !== undefined) {
@@ -281,12 +281,69 @@ function normalizeTaskUpdates(updates) {
     updates.category = updates.category.trim();
   }
 
-  if (updates.priority !== undefined && !VALID_PRIORITIES.includes(updates.priority)) {
-    throw 'Something went wrong. Please try again.';
+  validateOptionalPriority(updates.priority);
+  validateOptionalStatus(updates.status);
+}
+
+/**
+ * Normalizes a required task title.
+ * @param {string} title - Raw title value.
+ * @returns {string} Trimmed and length-limited title.
+ * @throws {string} Human-readable validation message on failure.
+ */
+function normalizeRequiredTitle(title) {
+  const trimmedTitle = String(title || '').trim();
+
+  if (!trimmedTitle) {
+    throw 'Please enter a task title.';
   }
 
-  if (updates.status !== undefined && !VALID_STATUSES.includes(updates.status)) {
+  return trimmedTitle.slice(0, MAX_TITLE_LENGTH);
+}
+
+/**
+ * Validates a task priority value.
+ * @param {string} priority - Priority value to validate.
+ * @returns {void}
+ * @throws {string} Human-readable validation message on failure.
+ */
+function validatePriority(priority) {
+  if (!VALID_PRIORITIES.includes(priority)) {
     throw 'Something went wrong. Please try again.';
+  }
+}
+
+/**
+ * Validates a task status value.
+ * @param {string} status - Status value to validate.
+ * @returns {void}
+ * @throws {string} Human-readable validation message on failure.
+ */
+function validateStatus(status) {
+  if (!VALID_STATUSES.includes(status)) {
+    throw 'Something went wrong. Please try again.';
+  }
+}
+
+/**
+ * Validates priority only when an update includes it.
+ * @param {string|undefined} priority - Optional priority value.
+ * @returns {void}
+ */
+function validateOptionalPriority(priority) {
+  if (priority !== undefined) {
+    validatePriority(priority);
+  }
+}
+
+/**
+ * Validates status only when an update includes it.
+ * @param {string|undefined} status - Optional status value.
+ * @returns {void}
+ */
+function validateOptionalStatus(status) {
+  if (status !== undefined) {
+    validateStatus(status);
   }
 }
 
