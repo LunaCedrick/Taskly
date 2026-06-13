@@ -182,25 +182,11 @@ Dashboard listener resilience:
 - Empty states use `aria-live="polite"`.
 - Error banners use `role="alert"` and must be dismissible.
 
-## Validation Checklist
+## Review Handoff
 
-Before reporting completion, verify:
-
-- No out-of-scope files were modified.
-- No stale IDs were introduced, especially `#notification-count`,
-  `#dashboard-view`, `#project-view`, or `#content`.
-- No stale API names were introduced, especially `getProjects`, `getTasks`,
-  `subscribeToProjects`, `subscribeToTasks`, or `logout`.
-- No `console.log` statements remain in committed code.
-- No `innerHTML` is used with user or Firestore data.
-- Every new function has JSDoc.
-- `config.example.js` remains plain compat syntax if touched.
-- `git diff --check` passes.
-
-## Required Review
-
-After implementation, run `.agents/skills/review/SKILL.md`.
-Report findings first, ordered by severity.
+Do not duplicate the full QA checklist here.
+After implementation, run `.agents/skills/review/SKILL.md` before committing.
+The review skill owns the complete validation checklist and final report format.
 ```
 
 ---
@@ -216,7 +202,7 @@ When drafting an actual Session 6-17 skill from this template:
 - Keep required reading minimal: `AGENTS.md` plus the active session skill.
 - State allowed files explicitly.
 - State what belongs to later sessions explicitly.
-- Include the required review step.
+- Include only a short review handoff, not a duplicated checklist.
 - Keep future-session notes short and concrete.
 
 ## Known Stale Terms To Avoid
