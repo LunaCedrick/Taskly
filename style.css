@@ -497,3 +497,336 @@ ol {
 .fab[hidden] {
   display: none;
 }
+
+/* ── UI COMPONENTS — SESSION 5 ──────────────────────────── */
+
+/* Sidebar project list */
+.sidebar-empty {
+  padding: 8px 16px;
+  color: var(--color-sidebar-text);
+  font-size: 12px;
+}
+
+.project-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 16px;
+}
+
+.project-item__name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Task card internals */
+.task-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.task-card--done {
+  opacity: 0.6;
+}
+
+.task-card--done .task-card__title {
+  text-decoration: line-through;
+  color: var(--color-done-text);
+}
+
+.task-card__checkbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  flex-shrink: 0;
+  accent-color: var(--color-accent);
+}
+
+.task-card__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.task-card__title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.task-card__description {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.task-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.task-card__category {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 2px 8px;
+}
+
+.task-card__due-date {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.task-card__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.task-card__edit,
+.task-card__delete {
+  background: none;
+  border: none;
+  font-size: 14px;
+  color: var(--color-text-muted);
+  padding: 4px;
+  transition: color var(--transition-fast);
+}
+
+.task-card__edit:hover,
+.task-card__delete:hover {
+  color: var(--color-text-primary);
+}
+
+/* Priority dot + label */
+.priority {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: var(--color-text-muted);
+}
+
+.priority__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.priority--high .priority__dot   { background: var(--color-priority-high); }
+.priority--medium .priority__dot { background: var(--color-priority-med); }
+.priority--low .priority__dot    { background: var(--color-priority-low); }
+.priority--none .priority__dot   { background: var(--color-priority-none); }
+
+/* Stat cards */
+.stat-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.stat-card--completed .stat-card__value { color: var(--color-status-done); }
+.stat-card--progress .stat-card__value  { color: var(--color-status-progress); }
+.stat-card--overdue .stat-card__value   { color: var(--color-overdue-text); }
+
+.stat-card__label {
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+/* Skeleton loading cards */
+.task-card--skeleton {
+  flex-direction: column;
+  gap: 8px;
+}
+
+.skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--color-border);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.skeleton-line--title { width: 60%; height: 16px; }
+.skeleton-line--meta  { width: 40%; }
+
+@keyframes skeleton-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.4; }
+}
+
+/* Empty states */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.empty-state__message {
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+/* Error banner */
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--color-overdue-bg);
+  border: 1px solid var(--color-overdue-border);
+  border-radius: 12px;
+}
+
+.error-banner__message {
+  font-size: 13px;
+  color: var(--color-overdue-text);
+}
+
+.error-banner__dismiss {
+  background: none;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-overdue-text);
+  flex-shrink: 0;
+}
+
+/* Notification panel items */
+.notification-empty {
+  padding: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.notification-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.notification-item--unread {
+  background: var(--color-bg);
+}
+
+.notification-item__message {
+  font-size: 12px;
+  color: var(--color-text-primary);
+}
+
+.notification-item__time {
+  font-size: 11px;
+  color: var(--color-text-light);
+}
+
+/* Activity feed */
+.activity-empty {
+  padding: 16px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.activity-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 12px;
+}
+
+.activity-item__text {
+  color: var(--color-text-primary);
+}
+
+.activity-item__time {
+  color: var(--color-text-light);
+  flex-shrink: 0;
+}
+
+/* Modal content */
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  padding: 20px 20px 0;
+}
+
+.modal-message {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  padding: 12px 20px 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 20px;
+}
+
+/* Task form */
+.task-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px 20px 0;
+}
+
+.task-form .form-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  margin-top: 8px;
+}
+
+.task-form input,
+.task-form textarea,
+.task-form select {
+  height: 36px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+}
+
+.task-form textarea {
+  height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.task-form input:focus,
+.task-form textarea:focus,
+.task-form select:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
