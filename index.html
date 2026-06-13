@@ -115,8 +115,73 @@
 
       <!-- Content region -->
       <main class="content" id="main-content">
-        <section id="view-dashboard" class="content-view">
-          <!-- Rendered by ui.js in Session 6 -->
+        <section id="view-dashboard" class="content-view dashboard" aria-labelledby="topbar-title">
+          <!-- Dashboard header -->
+          <header class="dashboard__header">
+            <p class="dashboard__eyebrow">Today at a glance</p>
+            <h2 class="dashboard__title">Focus on what needs attention</h2>
+            <p class="dashboard__subtitle">
+              Tasks are grouped across every project so overdue, due today, and upcoming work stay visible.
+            </p>
+          </header>
+
+          <!-- Dashboard stats -->
+          <section class="dashboard-section" aria-label="Dashboard overview">
+            <div class="dashboard-section__header">
+              <h2 class="dashboard-section__title">Overview</h2>
+              <span class="dashboard-section__meta">All projects</span>
+            </div>
+            <div id="dashboard-stats" class="dashboard__stats" aria-live="polite">
+              <!-- Stats rendered by ui.renderStats() -->
+            </div>
+          </section>
+
+          <!-- Dashboard task and activity regions -->
+          <div class="dashboard__grid">
+            <!-- Overdue tasks -->
+            <section class="dashboard-section dashboard-section--overdue" aria-label="Overdue tasks">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Overdue</h2>
+                <span class="dashboard-section__meta">Needs action</span>
+              </div>
+              <div id="dashboard-overdue" class="dashboard-section__body" aria-live="polite">
+                <!-- Overdue task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Today tasks -->
+            <section class="dashboard-section dashboard-section--today" aria-label="Tasks due today">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Today</h2>
+                <span class="dashboard-section__meta">Due now</span>
+              </div>
+              <div id="dashboard-today" class="dashboard-section__body" aria-live="polite">
+                <!-- Today task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Upcoming tasks -->
+            <section class="dashboard-section dashboard-section--upcoming" aria-label="Upcoming tasks">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Upcoming</h2>
+                <span class="dashboard-section__meta">Next deadlines</span>
+              </div>
+              <div id="dashboard-upcoming" class="dashboard-section__body" aria-live="polite">
+                <!-- Upcoming task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Recent activity -->
+            <section class="dashboard-section dashboard-section--activity" aria-label="Recent activity">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Recent Activity</h2>
+                <span class="dashboard-section__meta">Latest changes</span>
+              </div>
+              <ul id="activity-feed" class="dashboard-section__body" aria-live="polite">
+                <!-- Activity items rendered by ui.renderActivityFeed() -->
+              </ul>
+            </section>
+          </div>
         </section>
 
         <section id="view-project" class="content-view" hidden>
