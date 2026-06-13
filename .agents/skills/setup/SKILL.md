@@ -75,7 +75,7 @@ config.example.js is committed. It shows structure only — no real values:
 // Copy this file to js/config.js and fill in your Firebase values.
 // NEVER commit js/config.js — it contains real API keys.
 
-export const firebaseConfig = {
+const firebaseConfig = {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_AUTH_DOMAIN",
   projectId: "YOUR_PROJECT_ID",
@@ -110,6 +110,12 @@ what is listed here.
     href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap"
     rel="stylesheet"
   />
+
+  <!-- Firebase compat SDKs — must load before config.js -->
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/12.4.0/firebase-messaging-compat.js"></script>
 
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -207,7 +213,7 @@ Two top-level views. Only one visible at a time (router.js manages this).
           <button id="notification-bell" class="notification-bell"
                   aria-label="Notifications 0 unread">
             &#128276;
-            <span id="notification-count"
+            <span id="notif-count"
                   class="notification-count"
                   hidden>0</span>
           </button>
@@ -215,7 +221,7 @@ Two top-level views. Only one visible at a time (router.js manages this).
       </header>
 
       <!-- Content region — views swap here -->
-      <main class="content" id="content">
+      <main class="content" id="main-content">
 
         <!-- Dashboard view -->
         <section id="view-dashboard" class="content-view">
@@ -388,8 +394,8 @@ in the session that builds each component.
 
 /* Sidebar */
 .sidebar {
-  width: 200px;
-  min-width: 200px;
+  width: 220px;
+  min-width: 220px;
   background: var(--color-sidebar);
   display: flex;
   flex-direction: column;
@@ -414,7 +420,7 @@ in the session that builds each component.
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-sidebar-text-muted);
+  color: var(--color-sidebar-text);
   padding: 12px 16px 4px;
 }
 
@@ -428,7 +434,7 @@ in the session that builds each component.
 .btn-new-project {
   background: none;
   border: none;
-  color: var(--color-sidebar-text-muted);
+  color: var(--color-sidebar-text);
   font-size: 13px;
   font-weight: 500;
   padding: 8px 16px;
@@ -479,7 +485,7 @@ in the session that builds each component.
   background: none;
   border: none;
   font-size: 11px;
-  color: var(--color-sidebar-text-muted);
+  color: var(--color-sidebar-text);
   padding: 0;
   text-align: left;
   transition: color 0.15s ease;
@@ -500,7 +506,7 @@ in the session that builds each component.
 
 /* Topbar */
 .topbar {
-  height: 52px;
+  height: 56px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -543,7 +549,7 @@ in the session that builds each component.
   font-size: 13px;
   color: var(--color-text-primary);
   background: var(--color-bg);
-  width: 200px;
+  width: 220px;
   transition: border-color 0.15s ease;
 }
 
@@ -617,7 +623,7 @@ in the session that builds each component.
 /* Notification panel */
 .notification-panel {
   position: fixed;
-  top: 52px;
+  top: 56px;
   right: 16px;
   width: 320px;
   background: var(--color-card);
@@ -927,7 +933,7 @@ Run this before committing. Every item must pass.
 - [ ] Open `index.html` in browser — no console errors
 - [ ] Login view renders with correct colors and font
 - [ ] No layout breaks at 375px viewport width
-- [ ] Run skills/review/SKILL.md as required by the build-setup prompt in AGENTS.md §16
+- [ ] Run .agents/skills/review/SKILL.md as required by the build-setup prompt in AGENTS.md
 
 ---
 

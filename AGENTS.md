@@ -241,6 +241,14 @@ Firebase Plan: Spark (free)
 NO frameworks — no React, Vue, Bootstrap, Tailwind, jQuery.
 NO build tools — no Webpack, Vite, or bundler of any kind.
 
+### config.example.js — Style Requirement
+
+config.example.js MUST match config.js's syntax exactly —
+plain `const firebaseConfig = {...}`, no `export` keyword.
+This is a template file copied directly to create config.js;
+any ES module syntax here is misleading and inconsistent with
+the compat CDN SDK Style declared in §3.
+
 ---
 
 ## 4. FILE STRUCTURE
@@ -256,24 +264,26 @@ taskly/
 │   ├── db.js           ← All Firestore operations, listeners
 │   ├── ui.js           ← All DOM rendering, shared components
 │   └── app.js          ← Orchestrator, state, event listeners
-├── skills/
-│   ├── setup/SKILL.md
-│   ├── auth/SKILL.md
-│   ├── router/SKILL.md
-│   ├── db/SKILL.md
-│   ├── ui/SKILL.md
-│   ├── dashboard/SKILL.md
-│   ├── projects/SKILL.md
-│   ├── tasks/SKILL.md
-│   ├── search-filter/SKILL.md
-│   ├── notifications/SKILL.md
-│   ├── offline/SKILL.md
-│   ├── settings/SKILL.md
-│   ├── app/SKILL.md
-│   ├── review/SKILL.md
-│   ├── responsive/SKILL.md
-│   ├── accessibility/SKILL.md
-│   └── performance/SKILL.md
+├── .agents/
+│   └── skills/
+│       ├── setup/SKILL.md
+│       ├── auth/SKILL.md
+│       ├── router/SKILL.md
+│       ├── db/SKILL.md
+│       ├── ui/SKILL.md
+│       ├── dashboard/SKILL.md
+│       ├── projects/SKILL.md
+│       ├── tasks/SKILL.md
+│       ├── search-filter/SKILL.md
+│       ├── notifications/SKILL.md
+│       ├── offline/SKILL.md
+│       ├── settings/SKILL.md
+│       ├── app/SKILL.md
+│       ├── review/SKILL.md
+│       ├── responsive/SKILL.md
+│       ├── accessibility/SKILL.md
+│       ├── performance/SKILL.md
+│       └── SESSION_TEMPLATE.md ← Authoring template only, not a session
 ├── AGENTS.md           ← This file — read every session
 ├── PLAN.md             ← Full architecture plan
 ├── DOCUMENTATION.md    ← Product documentation
@@ -322,12 +332,12 @@ config.js
      window.auth remains reserved for the custom auth module
 
 auth.js
+  ✅ initAuthListener(onSignIn, onSignOut)
   ✅ signInWithGoogle()
   ✅ signOut()
-  ✅ getCurrentUser()
-  ✅ onAuthStateChanged listener (exposes to router.js)
+  ✅ onAuthStateChanged listener (exposes auth-state callback)
   ✅ requestNotificationPermission() — first login only
-  ✅ saveFCMToken(userId, token)
+  ✅ saveFcmToken(userId, token) via db.js when FCM is granted
   ❌ No DOM manipulation
   ❌ No Firestore reads beyond saving FCM token
   ❌ No application state management
@@ -343,19 +353,17 @@ router.js
 
 db.js
   ✅ createProject(userId, name)
-  ✅ getProjects(userId) — returns onSnapshot listener
+  ✅ listenToProjects(userId, callback) — returns onSnapshot unsubscribe
   ✅ updateProject(userId, projectId, data)
   ✅ deleteProject(userId, projectId)
   ✅ createTask(userId, projectId, taskData)
-  ✅ getTasks(userId, projectId) — returns onSnapshot listener
-  ✅ getDashboardTasks(userId) — collection group query
+  ✅ listenToTasks(userId, projectId, callback) — returns onSnapshot unsubscribe
+  ✅ listenToDashboardTasks(userId, callback) — collection group listener
   ✅ updateTask(userId, projectId, taskId, data)
   ✅ deleteTask(userId, projectId, taskId)
-  ✅ completeTask(userId, projectId, taskId, isDone)
   ✅ writeActivityLog(userId, event)
-  ✅ getUserProfile(userId)
   ✅ saveUserProfile(userId, profileData)
-  ✅ enableOfflinePersistence() — called once on init
+  ✅ saveFcmToken(userId, token)
   ❌ No DOM access — never touches HTML
   ❌ No UI rendering
   ❌ No application state management
@@ -427,7 +435,7 @@ const state = {
 ### Listener Cleanup Pattern — Critical
 ```javascript
 // Store every onSnapshot reference
-const unsubProjects = db.getProjects(userId, callback);
+const unsubProjects = db.listenToProjects(userId, callback);
 state.listeners.push(unsubProjects);
 
 // On sign out — detach all
@@ -437,6 +445,38 @@ state.listeners = [];
 
 Failure to detach listeners causes memory leaks
 and Firestore errors on re-login. Always use this pattern.
+
+### Listener Resilience — Dashboard Collection Group Query
+
+CONFIRMED BEHAVIOR (Session 4 manual test):
+When db.deleteProject() runs its batch delete (removes a task
+document AND its parent project document in the same batch),
+any live listener from listenToDashboardTasks() may fire its
+error callback once with a transient "permission-denied" error
+— even though the delete succeeds and Firestore data is correct.
+
+This is a known Firestore SDK quirk with collection-group
+listeners reacting to batched deletes that remove an entire
+path branch at once. db.js is not at fault — its error mapping
+is working as designed (AGENTS.md §7).
+
+IMPACT: Once onSnapshot's error callback fires, Firestore stops
+delivering further updates on that listener. Left unhandled,
+the dashboard would silently stop receiving live updates after
+any project deletion.
+
+REQUIRED HANDLING — Session 13 (app.js):
+- When listenToDashboardTasks()'s error callback fires with
+  "Unable to load data. Please try again.", app.js must re-subscribe:
+  call db.listenToDashboardTasks() again, replace the stored
+  unsubscribe function in state.listeners, and continue.
+- Do not surface this specific transient error to the user as
+  a persistent error banner — it self-resolves on re-subscribe.
+
+REQUIRED HANDLING — Session 6 (dashboard view):
+- If a brief "reconnecting" state is shown during re-subscribe,
+  it must follow the loading/skeleton pattern (AGENTS.md §10),
+  not the error banner pattern — this is not a user-facing error.
 
 ---
 
@@ -590,7 +630,7 @@ Modifier  : .task-card--overdue
 ```
 Variables : currentProjectId, taskDueDate, searchQuery
 Functions : createTask, renderDashboard, handleSearch
-            signInWithGoogle, enableOfflinePersistence
+            signInWithGoogle, listenToDashboardTasks
 Constants : DEFAULT_PRIORITY, STATUS_TODO, STATUS_DONE
 State keys: user, currentProjectId, filters, listeners
 ```
@@ -606,9 +646,9 @@ router.js, db.js, ui.js, app.js
 #view-login, #view-app
 #sidebar, #main-content, #topbar
 #search-input, #notification-bell, #notif-count
-#task-list, #project-list
+#task-list, #sidebar-project-list
 #add-task-modal, #edit-task-modal, #confirm-modal
-#dashboard-view, #project-view, #settings-view
+#view-dashboard, #view-project, #view-settings
 #fab-add-task
 #offline-banner
 ```
@@ -765,7 +805,7 @@ docs: update README with Vercel deployment URL
 - Never commit directly to main
 - Never commit config.js — it contains Firebase keys
 - Never commit with console.log statements
-- Run skills/review/SKILL.md before every push to dev
+- Run .agents/skills/review/SKILL.md before every push to dev
 - Merge dev → main only after full QA (Session 14)
 - Tag production release: git tag v1.0.0
 
@@ -775,80 +815,86 @@ docs: update README with Vercel deployment URL
 
 All 17 skills. One session per skill. Review runs after every session.
 
+Reusable authoring template:
+`.agents/skills/SESSION_TEMPLATE.md`
+
+This template is only for drafting Sessions 6–17 consistently.
+It is not a build session and must not be treated as Session 18.
+
 ```
-Session  1 : skills/setup/SKILL.md
+Session  1 : .agents/skills/setup/SKILL.md
              Folder structure, base HTML shell, CSS tokens,
              DM Sans link, Firebase SDK links, module stubs
 
-Session  2 : skills/auth/SKILL.md
+Session  2 : .agents/skills/auth/SKILL.md
              auth.js — Google Sign-In, session persistence,
              sign-out, FCM permission request on first login
 
-Session  3 : skills/router/SKILL.md
+Session  3 : .agents/skills/router/SKILL.md
              router.js — view switching, onAuthStateChanged,
              shows login or app view, calls app.init()
 
-Session  4 : skills/db/SKILL.md
+Session  4 : .agents/skills/db/SKILL.md
              db.js — ALL Firestore CRUD, onSnapshot listeners,
              offline persistence, activity log writes,
              collection group query for dashboard
 
-Session  5 : skills/ui/SKILL.md
+Session  5 : .agents/skills/ui/SKILL.md
              ui.js — all shared render functions, skeleton
              cards, empty states, error banners, modals,
              notification panel, offline banner
 
-Session  6 : skills/dashboard/SKILL.md
+Session  6 : .agents/skills/dashboard/SKILL.md
              Dashboard view — aggregated stats, overdue,
              today, upcoming, recent activity sections
 
-Session  7 : skills/projects/SKILL.md
+Session  7 : .agents/skills/projects/SKILL.md
              Project CRUD, sidebar project list, progress
              bars, project switching, delete confirmation
 
-Session  8 : skills/tasks/SKILL.md
+Session  8 : .agents/skills/tasks/SKILL.md
              Task CRUD, add/edit modal forms, complete
              toggle, due date sorting, overdue/today
              highlighting, FAB entry point
 
-Session  9 : skills/search-filter/SKILL.md
+Session  9 : .agents/skills/search-filter/SKILL.md
              Real-time search (title+desc+category),
              filter tabs (status/priority/category),
              combined filter + search logic, debounce
 
-Session 10 : skills/notifications/SKILL.md
+Session 10 : .agents/skills/notifications/SKILL.md
              In-app alert banners, notification bell,
              panel, mark as read, browser push via FCM,
              event-triggered notifications
 
-Session 11 : skills/offline/SKILL.md
+Session 11 : .agents/skills/offline/SKILL.md
              Offline banner, network status listener,
              offline persistence verification, sync on
              reconnect behavior
 
-Session 12 : skills/settings/SKILL.md
+Session 12 : .agents/skills/settings/SKILL.md
              Settings view — profile display, notification
              toggle, theme placeholder, sign-out with
              confirmation modal
 
-Session 13 : skills/app/SKILL.md
+Session 13 : .agents/skills/app/SKILL.md
              app.js — full orchestration, state object,
              all event listeners, listener cleanup,
              search/filter wiring, network status handling
 
-Session 14 : skills/review/SKILL.md
+Session 14 : .agents/skills/review/SKILL.md
              Full QA pass — all modules reviewed
              Run after EVERY session, not just Session 14
 
-Session 15 : skills/responsive/SKILL.md
+Session 15 : .agents/skills/responsive/SKILL.md
              Full mobile and tablet pass — all breakpoints,
              sidebar collapse, modal sizing, touch targets
 
-Session 16 : skills/accessibility/SKILL.md
+Session 16 : .agents/skills/accessibility/SKILL.md
              ARIA on modals, focus traps, keyboard nav,
              contrast verification, screen reader testing
 
-Session 17 : skills/performance/SKILL.md
+Session 17 : .agents/skills/performance/SKILL.md
              Listener cleanup audit, unused CSS removal,
              no console.logs, PWA manifest prep,
              Vercel deployment final steps
@@ -866,13 +912,13 @@ Session 17 : skills/performance/SKILL.md
 ## 15. BUILD PROMPTS
 
 Copy these exactly when starting each session.
-Always attach AGENTS.md and the named skill file.
+Always attach AGENTS.md and the named skill file from `.agents/skills/`.
 
 ---
 
 ### PROMPT: build-setup
 ```
-Read AGENTS.md and skills/setup/SKILL.md completely.
+Read AGENTS.md and .agents/skills/setup/SKILL.md completely.
 Build the project setup exactly as specified.
 Create all files and folders defined in AGENTS.md.
 Write CSS custom properties for the full design system.
@@ -880,37 +926,37 @@ Write empty module stubs with file header comments.
 Link all scripts in correct order in index.html.
 Do not build any features — setup only.
 Comment every file and every section.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report everything created and flag any issues.
 ```
 
 ### PROMPT: build-auth
 ```
-Read AGENTS.md and skills/auth/SKILL.md completely.
+Read AGENTS.md and .agents/skills/auth/SKILL.md completely.
 Project setup exists — do not recreate it.
 Build auth.js exactly as specified.
 Implement Google Sign-In, session persistence,
 sign-out, and FCM permission request for first login.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-router
 ```
-Read AGENTS.md and skills/router/SKILL.md completely.
+Read AGENTS.md and .agents/skills/router/SKILL.md completely.
 auth.js exists — do not modify it.
 Build router.js exactly as specified.
 Implement auth state listener, showLoginView(),
 showAppView(), and app.js init trigger.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-db
 ```
-Read AGENTS.md and skills/db/SKILL.md completely.
+Read AGENTS.md and .agents/skills/db/SKILL.md completely.
 Auth and router modules exist — do not modify them.
 Build db.js exactly as specified.
 Implement all Firestore CRUD functions, onSnapshot
@@ -918,64 +964,64 @@ listeners, offline persistence, activity log writes,
 and collection group query for the dashboard.
 Every task write must include the userId field.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-ui
 ```
-Read AGENTS.md and skills/ui/SKILL.md completely.
+Read AGENTS.md and .agents/skills/ui/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build all render functions in ui.js exactly as specified.
 Use textContent for all user and Firestore data — never innerHTML.
 Build skeleton cards, empty states, error banners,
 modals, notification panel, and offline banner.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-dashboard
 ```
-Read AGENTS.md and skills/dashboard/SKILL.md completely.
+Read AGENTS.md and .agents/skills/dashboard/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build the dashboard view exactly as specified.
 Render stats, overdue, today, upcoming, and
 recent activity sections using data from db.js.
 Use ui.js render functions — no direct DOM manipulation.
 Comment every section.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-projects
 ```
-Read AGENTS.md and skills/projects/SKILL.md completely.
+Read AGENTS.md and .agents/skills/projects/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build project CRUD, sidebar project list, progress
 tracking bars, project switching, and delete
 confirmation modal exactly as specified.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-tasks
 ```
-Read AGENTS.md and skills/tasks/SKILL.md completely.
+Read AGENTS.md and .agents/skills/tasks/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build task CRUD, add/edit modal forms, complete toggle,
 due date sorting, overdue/today highlighting, and FAB
 exactly as specified.
 Every new task must include the userId field.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-search-filter
 ```
-Read AGENTS.md and skills/search-filter/SKILL.md completely.
+Read AGENTS.md and .agents/skills/search-filter/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build real-time search across title, description, and
 category. Build filter tabs for status, priority,
@@ -983,13 +1029,13 @@ and category. Implement combined filter logic.
 All filtering is client-side — no Firestore reads.
 Debounce search input at 150ms.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-notifications
 ```
-Read AGENTS.md and skills/notifications/SKILL.md completely.
+Read AGENTS.md and .agents/skills/notifications/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build in-app alert banners, notification bell with
 unread count, notification panel, mark as read,
@@ -997,37 +1043,37 @@ and browser push notifications via FCM exactly as
 specified. Do NOT implement scheduled 8AM reminders.
 Browser notifications are triggered by app events only.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-offline
 ```
-Read AGENTS.md and skills/offline/SKILL.md completely.
+Read AGENTS.md and .agents/skills/offline/SKILL.md completely.
 All prior modules exist — do not modify them.
 Verify offline persistence is correctly enabled.
 Build offline banner, network status listener,
 and sync-on-reconnect behavior exactly as specified.
 Comment every section.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-settings
 ```
-Read AGENTS.md and skills/settings/SKILL.md completely.
+Read AGENTS.md and .agents/skills/settings/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build settings view — profile display, notification
 toggle, theme placeholder, and sign-out with
 confirmation modal exactly as specified.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: build-app
 ```
-Read AGENTS.md and skills/app/SKILL.md completely.
+Read AGENTS.md and .agents/skills/app/SKILL.md completely.
 All other modules are complete — do not modify them.
 Build app.js — the full orchestration layer.
 Implement the state object, init(), all event listeners,
@@ -1036,13 +1082,13 @@ wiring, network status handling, and project switching.
 All Firebase calls go through db.js.
 All DOM updates go through ui.js.
 Comment every function with JSDoc format.
-After building, run skills/review/SKILL.md.
+After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.
 ```
 
 ### PROMPT: run-review
 ```
-Read AGENTS.md and skills/review/SKILL.md completely.
+Read AGENTS.md and .agents/skills/review/SKILL.md completely.
 Review the code I am about to paste.
 Output a full audit report:
   ✅ PASS — done correctly
@@ -1054,28 +1100,28 @@ State: READY TO PROCEED yes/no.
 
 ### PROMPT: run-responsive
 ```
-Read AGENTS.md and skills/responsive/SKILL.md completely.
+Read AGENTS.md and .agents/skills/responsive/SKILL.md completely.
 All features are complete — do not add new functionality.
 Audit and fix the full project for responsive behavior
 at: 375px, 768px, 1024px, 1440px.
 Fix all issues found.
-Run skills/review/SKILL.md after.
+Run .agents/skills/review/SKILL.md after.
 Report every change made.
 ```
 
 ### PROMPT: run-accessibility
 ```
-Read AGENTS.md and skills/accessibility/SKILL.md completely.
+Read AGENTS.md and .agents/skills/accessibility/SKILL.md completely.
 All features and responsive behavior are complete.
 Audit and fix the full project for accessibility.
 Fix all issues found.
-Run skills/review/SKILL.md after.
+Run .agents/skills/review/SKILL.md after.
 Report every change made.
 ```
 
 ### PROMPT: run-performance
 ```
-Read AGENTS.md and skills/performance/SKILL.md completely.
+Read AGENTS.md and .agents/skills/performance/SKILL.md completely.
 This is the final pass before deployment.
 Audit for unused code, console.logs, listener leaks,
 missing PWA files, and deployment requirements.
