@@ -132,8 +132,8 @@ function renderProjectList(projects, activeProjectId) {
  * @returns {void}
  */
 function appendProjectListContent(container, projects, activeProjectId) {
-  if (projects.length === 0) {
-    container.appendChild(createEl('p', 'sidebar-empty', 'No projects yet'));
+  if (!projects || projects.length === 0) {
+    container.appendChild(createEl('p', 'sidebar-empty', getEmptyStateConfig('no-projects').text));
     return;
   }
 
@@ -151,6 +151,7 @@ function appendProjectListContent(container, projects, activeProjectId) {
 function buildProjectItem(project, activeProjectId) {
   const item = createEl('a', 'nav-item project-item');
   item.href = '#';
+  item.dataset.view = 'project';
   item.dataset.projectId = project.id;
   item.setAttribute('aria-label', `Open project ${project.name}`);
 
@@ -171,7 +172,11 @@ function buildProjectItem(project, activeProjectId) {
  * @returns {HTMLElement} Progress bar element.
  */
 function buildProgressBar(total, completed) {
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+  const safeTotal = Number(total) || 0;
+  const safeCompleted = Number(completed) || 0;
+  const percent = safeTotal > 0
+    ? Math.min(100, Math.max(0, Math.round((safeCompleted / safeTotal) * 100)))
+    : 0;
   const track = createEl('div', 'progress-bar');
   const fill = createEl('div', 'progress-bar__fill');
 
@@ -179,6 +184,99 @@ function buildProgressBar(total, completed) {
   track.appendChild(fill);
 
   return track;
+}
+
+/**
+ * Renders the selected project shell without rendering project tasks.
+ * Project progress counts are enriched by app.js in Session 13.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function renderProjectView(project) {
+  const title = document.getElementById('project-title');
+  const meta = document.getElementById('project-meta');
+
+  if (!title || !meta) {
+    return;
+  }
+
+  if (!project) {
+    title.textContent = 'Select a project';
+    meta.textContent = 'Choose a project from the sidebar to view its tasks.';
+    updateProjectActionButtons(null);
+    return;
+  }
+
+  title.textContent = project.name || 'Untitled project';
+  meta.textContent = getProjectMeta(project);
+  updateProjectActionButtons(project);
+}
+
+/**
+ * Builds concise metadata for the project header.
+ * @param {Object} project - Project object to describe.
+ * @returns {string} Project metadata copy.
+ */
+function getProjectMeta(project) {
+  const hasTaskCounts = project.taskCount !== undefined || project.completedCount !== undefined;
+
+  if (hasTaskCounts) {
+    return formatProjectTaskCounts(project.taskCount || 0, project.completedCount || 0);
+  }
+
+  if (project.createdAt) {
+    return `Created ${formatDate(project.createdAt)}`;
+  }
+
+  return 'Project tasks will appear below.';
+}
+
+/**
+ * Formats project task count metadata.
+ * @param {number} taskCount - Total task count.
+ * @param {number} completedCount - Completed task count.
+ * @returns {string} Task count summary.
+ */
+function formatProjectTaskCounts(taskCount, completedCount) {
+  const total = Number(taskCount) || 0;
+  const completed = Number(completedCount) || 0;
+  const taskLabel = total === 1 ? 'task' : 'tasks';
+
+  return `${total} ${taskLabel}, ${completed} complete`;
+}
+
+/**
+ * Updates project action buttons for the active project.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function updateProjectActionButtons(project) {
+  const buttons = [
+    document.getElementById('btn-edit-project'),
+    document.getElementById('btn-delete-project'),
+  ];
+
+  buttons.forEach((button) => updateProjectActionButton(button, project));
+}
+
+/**
+ * Updates one project action button with active project data.
+ * @param {HTMLButtonElement|null} button - Project action button.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function updateProjectActionButton(button, project) {
+  if (!button) {
+    return;
+  }
+
+  button.disabled = !project;
+
+  if (project && project.id) {
+    button.dataset.projectId = project.id;
+  } else {
+    delete button.dataset.projectId;
+  }
 }
 
 /**
@@ -740,6 +838,117 @@ function showEditTaskModal(task) {
 }
 
 /**
+ * Shows the Add Project modal with an empty name field.
+ * @returns {void}
+ */
+function showAddProjectModal() {
+  showProjectModal('Create Project', {}, 'create');
+}
+
+/**
+ * Shows the Edit Project modal with the current project name.
+ * @param {Object} project - Project data to pre-fill.
+ * @returns {void}
+ */
+function showEditProjectModal(project) {
+  showProjectModal('Rename Project', project || {}, 'edit');
+}
+
+/**
+ * Shows the shared project modal for create and rename flows.
+ * @param {string} titleText - Modal title text.
+ * @param {Object} project - Project data to pre-fill.
+ * @param {string} mode - Project modal mode for app.js wiring.
+ * @returns {void}
+ */
+function showProjectModal(titleText, project, mode) {
+  const panel = prepareModalPanel();
+
+  if (!panel) {
+    return;
+  }
+
+  panel.appendChild(buildModalTitle(titleText));
+  panel.appendChild(buildProjectForm(project, mode));
+  showModalOverlay();
+}
+
+/**
+ * Builds the project create or rename form.
+ * @param {Object} project - Project data to pre-fill.
+ * @param {string} mode - Project modal mode.
+ * @returns {HTMLFormElement} Project form.
+ */
+function buildProjectForm(project, mode) {
+  const form = createEl('form', 'project-modal');
+
+  form.dataset.projectMode = mode;
+
+  if (project.id) {
+    form.dataset.projectId = project.id;
+  }
+
+  appendProjectNameField(form, project.name || '');
+  appendProjectError(form);
+  form.appendChild(buildProjectFormActions());
+
+  return form;
+}
+
+/**
+ * Appends the project name field to the project form.
+ * @param {HTMLFormElement} form - Project form.
+ * @param {string} value - Current project name.
+ * @returns {void}
+ */
+function appendProjectNameField(form, value) {
+  const label = createEl('label', 'project-modal__field');
+  const labelText = createEl('span', 'form-label', 'Project name');
+  const input = createEl('input');
+
+  input.type = 'text';
+  input.name = 'projectName';
+  input.required = true;
+  input.maxLength = 80;
+  input.autocomplete = 'off';
+  input.value = value;
+  label.appendChild(labelText);
+  label.appendChild(input);
+  form.appendChild(label);
+}
+
+/**
+ * Appends project form validation message space.
+ * @param {HTMLFormElement} form - Project form.
+ * @returns {void}
+ */
+function appendProjectError(form) {
+  const error = createEl('p', 'project-modal__error');
+
+  error.dataset.projectError = 'name';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
+}
+
+/**
+ * Builds project form action buttons.
+ * @returns {HTMLElement} Actions wrapper.
+ */
+function buildProjectFormActions() {
+  const actions = createEl('div', 'modal-actions');
+  const cancelBtn = createEl('button', 'btn-ghost', 'Cancel');
+  const saveBtn = createEl('button', 'btn-primary', 'Save');
+
+  cancelBtn.type = 'button';
+  cancelBtn.dataset.modalAction = 'cancel';
+  saveBtn.type = 'submit';
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  return actions;
+}
+
+/**
  * Shows a task modal with a shared task form.
  * @param {string} titleText - Modal title.
  * @param {Object} task - Task data to pre-fill.
@@ -1051,6 +1260,7 @@ function updateNotificationBadge(count) {
 window.ui = {
   renderSidebar,
   renderProjectList,
+  renderProjectView,
   renderTaskList,
   renderTaskCard,
   renderDashboard,
@@ -1060,6 +1270,8 @@ window.ui = {
   renderErrorBanner,
   renderNotificationPanel,
   renderActivityFeed,
+  showAddProjectModal,
+  showEditProjectModal,
   showAddTaskModal,
   showEditTaskModal,
   showConfirmModal,

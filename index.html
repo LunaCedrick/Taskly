@@ -184,8 +184,39 @@
           </div>
         </section>
 
-        <section id="view-project" class="content-view" hidden>
-          <!-- Rendered by ui.js in Sessions 7-8 -->
+        <section id="view-project" class="content-view project-shell" hidden aria-labelledby="project-title">
+          <!-- Project header -->
+          <header id="project-header" class="project-header">
+            <div class="project-header__body">
+              <h2 id="project-title" class="project-header__title">Select a project</h2>
+              <p id="project-meta" class="project-header__meta">Choose a project from the sidebar to view its tasks.</p>
+            </div>
+            <div class="project-header__actions">
+              <button
+                id="btn-edit-project"
+                class="btn-ghost project-header__button"
+                type="button"
+                aria-label="Rename project"
+                disabled
+              >
+                Rename
+              </button>
+              <button
+                id="btn-delete-project"
+                class="btn-danger project-header__button"
+                type="button"
+                aria-label="Delete project"
+                disabled
+              >
+                Delete
+              </button>
+            </div>
+          </header>
+
+          <!-- Project task list -->
+          <div id="task-list" class="project-shell__tasks" aria-live="polite">
+            <!-- Task cards rendered by ui.renderTaskList() in Sessions 8-9 -->
+          </div>
         </section>
 
         <section id="view-settings" class="content-view" hidden>
