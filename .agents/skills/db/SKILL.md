@@ -113,12 +113,12 @@ a human-readable string on failure. See AGENTS.md §8 for the
 full message table — db.js uses these specific entries:
 
 ```
-Firebase failure  → "Unable to load data. Try again."
+Firebase failure  → "Unable to load data. Please try again."
 Missing project   → "This project no longer exists."
 Empty task title  → "Please enter a task title."
 Project name empty      → "Please enter a project name."
 Duplicate project name  → "A project with this name already exists."
-Unknown error     → "Something went wrong. Try again."
+Unknown error     → "Something went wrong. Please try again."
 ```
 
 Shared private helper — not exported:
@@ -136,12 +136,12 @@ function mapDbError(err) {
     return 'Connection lost. Check your internet.';
   }
   if (code === 'permission-denied') {
-    return 'Unable to load data. Try again.';
+    return 'Unable to load data. Please try again.';
   }
   if (code === 'not-found') {
     return 'This project no longer exists.';
   }
-  return 'Something went wrong. Try again.';
+  return 'Something went wrong. Please try again.';
 }
 ```
 
@@ -318,10 +318,10 @@ async function createTask(userId, projectId, taskData) {
   const status = taskData.status || STATUS_TODO;
 
   if (!VALID_PRIORITIES.includes(priority)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
   if (!VALID_STATUSES.includes(status)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 
   try {
@@ -388,12 +388,12 @@ async function updateTask(userId, projectId, taskId, data) {
 
   if (updates.priority !== undefined &&
       !VALID_PRIORITIES.includes(updates.priority)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 
   if (updates.status !== undefined &&
       !VALID_STATUSES.includes(updates.status)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 
   updates.updatedAt = firebase.firestore.FieldValue.serverTimestamp();

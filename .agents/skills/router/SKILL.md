@@ -43,8 +43,6 @@ It does this by:
 1. Hiding all views except the one requested
 2. Updating the topbar title to match the active view
 3. Toggling FAB visibility (visible in app, hidden on login)
-4. Calling ui.js render triggers when a view becomes active
-   (ui.js does the actual rendering — router only signals it)
 
 router.js does NOT:
 - Decide WHEN to switch views — app.js decides that
@@ -52,6 +50,7 @@ router.js does NOT:
   only for the initial page-load guard, nothing more
 - Store which view is active — that is app.js state
 - Attach click listeners to nav items — that is app.js
+- Trigger ui.js renders - app.js coordinates rendering after routing changes
 
 ---
 
@@ -108,7 +107,6 @@ view needs to change.
 /**
  * Shows the named view and hides all others.
  * Updates the topbar title and FAB visibility.
- * Calls the appropriate ui.js render trigger if provided.
  * @param {string} viewName - One of: 'login', 'dashboard',
  *                            'project', 'settings'
  */

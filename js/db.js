@@ -21,14 +21,14 @@ function mapDbError(err) {
   }
 
   if (code === 'permission-denied' || code === 'failed-precondition') {
-    return 'Unable to load data. Try again.';
+    return 'Unable to load data. Please try again.';
   }
 
   if (code === 'not-found') {
     return 'This project no longer exists.';
   }
 
-  return 'Something went wrong. Try again.';
+  return 'Something went wrong. Please try again.';
 }
 
 /**
@@ -194,7 +194,7 @@ async function createTask(userId, projectId, taskData) {
   }
 
   if (!VALID_PRIORITIES.includes(priority) || !VALID_STATUSES.includes(status)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 
   try {
@@ -282,11 +282,11 @@ function normalizeTaskUpdates(updates) {
   }
 
   if (updates.priority !== undefined && !VALID_PRIORITIES.includes(updates.priority)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 
   if (updates.status !== undefined && !VALID_STATUSES.includes(updates.status)) {
-    throw 'Something went wrong. Try again.';
+    throw 'Something went wrong. Please try again.';
   }
 }
 

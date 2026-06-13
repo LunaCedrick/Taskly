@@ -42,6 +42,15 @@ produces DOM. Nothing more. If it's not building DOM from
 given data, or it's not a new CSS rule listed in Section 0 —
 it does not belong in this session.
 
+Some render target containers are owned by later feature sessions.
+Session 5 may implement renderers that target IDs such as `#task-list`,
+`#dashboard-stats`, `#dashboard-overdue`, `#dashboard-today`,
+`#dashboard-upcoming`, and `#activity-feed`, but it must not add those
+view-specific containers to `index.html`. Missing containers must be
+handled as safe no-ops. Session 6 creates dashboard internals; Sessions
+7-8 create the project/task internals, including `#task-list` inside
+`#view-project`.
+
 ---
 
 ## 0. CSS ADDITIONS — APPEND TO style.css
@@ -1337,7 +1346,7 @@ function hideOfflineBanner() {
 
 ## 13. NOTIFICATION BADGE — updateNotificationBadge
 
-Targets `#notification-count` from Session 1's index.html.
+Targets `#notif-count` from Session 1's index.html.
 Per AGENTS.md §12: `aria-live="polite"` for count changes —
 already on the element from Session 1.
 
@@ -1349,7 +1358,7 @@ already on the element from Session 1.
  * @returns {void}
  */
 function updateNotificationBadge(count) {
-  const badge = document.getElementById('notification-count');
+  const badge = document.getElementById('notif-count');
   if (!badge) return;
 
   if (count <= 0) {
@@ -1436,7 +1445,7 @@ It builds DOM from that data and returns/inserts it. That's all.
 | `renderStats` called with all zeros | Renders normally — "0" is a valid stat, not treated as empty |
 | `showEditTaskModal({})` called with incomplete task object | Form fields default to empty/none — no crash on missing fields |
 | `renderActivityFeed` receives unknown `activity.type` | Falls back to label `'updated'` rather than showing `undefined` |
-| Container element (`#task-list`, `#dashboard-stats`, etc.) not yet in DOM | `getElementById` returns null — function returns early, no crash |
+| View-specific container (`#task-list`, `#dashboard-stats`, etc.) not yet in DOM | `getElementById` returns null — function returns early, no crash |
 | `updateNotificationBadge(0)` | Badge hidden, not shown with "0" |
 
 ---
@@ -1493,16 +1502,16 @@ Then run `.agents/skills/review/SKILL.md` as required by AGENTS.md §16.
 
 ### Browser check
 - [ ] Open index.html — no console errors from ui.js loading
-- [ ] In console: `ui.renderEmptyState('no-tasks')` →
-      empty state with "Add Task" button appears in #task-list,
-      styled (centered, muted text, violet button) — not
-      unstyled black text
+- [ ] After a temporary `#task-list` container is present in the
+      console or in a later feature view: `ui.renderEmptyState('no-tasks')`
+      renders a styled empty state with an "Add Task" button
 - [ ] In console: `ui.showConfirmModal('Delete this?', () => {})` →
       modal overlay becomes visible with Cancel/Confirm buttons,
       styled per AGENTS.md §2 (white panel, shadow, rounded)
 - [ ] In console: `ui.hideModal()` → overlay hides, panel cleared
-- [ ] In console: `ui.renderSkeletonCards(3)` →
-      3 skeleton cards appear in #task-list with pulsing animation
+- [ ] After a temporary `#task-list` container is present in the
+      console or in a later feature view: `ui.renderSkeletonCards(3)`
+      renders 3 skeleton cards with pulsing animation
 - [ ] In console: `ui.updateNotificationBadge(5)` →
       badge shows "5"; `ui.updateNotificationBadge(0)` → badge hides
 
