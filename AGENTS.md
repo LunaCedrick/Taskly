@@ -282,7 +282,8 @@ taskly/
 │       ├── review/SKILL.md
 │       ├── responsive/SKILL.md
 │       ├── accessibility/SKILL.md
-│       └── performance/SKILL.md
+│       ├── performance/SKILL.md
+│       └── SESSION_TEMPLATE.md ← Authoring template only, not a session
 ├── AGENTS.md           ← This file — read every session
 ├── PLAN.md             ← Full architecture plan
 ├── DOCUMENTATION.md    ← Product documentation
@@ -813,6 +814,12 @@ docs: update README with Vercel deployment URL
 ## 14. SKILL FILES DIRECTORY
 
 All 17 skills. One session per skill. Review runs after every session.
+
+Reusable authoring template:
+`.agents/skills/SESSION_TEMPLATE.md`
+
+This template is only for drafting Sessions 6–17 consistently.
+It is not a build session and must not be treated as Session 18.
 
 ```
 Session  1 : .agents/skills/setup/SKILL.md
