@@ -342,7 +342,13 @@ function buildTaskCardFragment(tasks) {
  */
 function renderTaskCard(task) {
   const card = createEl('article', 'task-card');
+
   card.dataset.taskId = task.id;
+
+  if (task.projectId) {
+    card.dataset.projectId = task.projectId;
+  }
+
   applyTaskCardState(card, task);
   card.appendChild(buildTaskCheckbox(task));
   card.appendChild(buildTaskBody(task));
@@ -358,14 +364,15 @@ function renderTaskCard(task) {
  * @returns {void}
  */
 function applyTaskCardState(card, task) {
-  if (task.status !== 'done' && isOverdue(task.dueDate)) {
+  if (task.status === STATUS_DONE) {
+    card.classList.add('task-card--done');
+    return;
+  }
+
+  if (isOverdue(task.dueDate)) {
     card.classList.add('task-card--overdue');
   } else if (isToday(task.dueDate)) {
     card.classList.add('task-card--today');
-  }
-
-  if (task.status === 'done') {
-    card.classList.add('task-card--done');
   }
 }
 
@@ -376,10 +383,17 @@ function applyTaskCardState(card, task) {
  */
 function buildTaskCheckbox(task) {
   const checkbox = createEl('input');
+
   checkbox.type = 'checkbox';
   checkbox.className = 'task-card__checkbox';
-  checkbox.checked = task.status === 'done';
+  checkbox.checked = task.status === STATUS_DONE;
+  checkbox.dataset.taskAction = 'toggle-status';
+  checkbox.dataset.taskId = task.id;
   checkbox.setAttribute('aria-label', `Mark ${task.title} complete`);
+
+  if (task.projectId) {
+    checkbox.dataset.projectId = task.projectId;
+  }
 
   return checkbox;
 }
@@ -412,6 +426,7 @@ function buildTaskMeta(task) {
   const meta = createEl('div', 'task-card__meta');
 
   meta.appendChild(buildPriorityLabel(task.priority || DEFAULT_PRIORITY));
+  meta.appendChild(buildStatusLabel(task.status || STATUS_TODO));
 
   if (task.category) {
     meta.appendChild(createEl('span', 'task-card__category', task.category));
@@ -422,6 +437,22 @@ function buildTaskMeta(task) {
   }
 
   return meta;
+}
+
+/**
+ * Builds a visible status label for the task card.
+ * @param {string} status - Task status value.
+ * @returns {HTMLElement} Status label element.
+ */
+function buildStatusLabel(status) {
+  const safeStatus = status || STATUS_TODO;
+  const labels = {
+    [STATUS_TODO]: 'To do',
+    [STATUS_PROGRESS]: 'In progress',
+    [STATUS_DONE]: 'Done',
+  };
+
+  return createEl('span', `task-card__status task-card__status--${safeStatus}`, labels[safeStatus] || 'To do');
 }
 
 /**
@@ -447,8 +478,8 @@ function buildPriorityLabel(priority) {
  */
 function buildTaskActions(task) {
   const actions = createEl('div', 'task-card__actions');
-  const editBtn = createIconButton('task-card__edit', `Edit ${task.title}`, '✎');
-  const deleteBtn = createIconButton('task-card__delete', `Delete ${task.title}`, '🗑');
+  const editBtn = createTaskActionButton(task, 'edit', 'Edit');
+  const deleteBtn = createTaskActionButton(task, 'delete', 'Delete');
 
   actions.appendChild(editBtn);
   actions.appendChild(deleteBtn);
@@ -457,16 +488,23 @@ function buildTaskActions(task) {
 }
 
 /**
- * Creates an icon-style button.
- * @param {string} className - Button class name.
- * @param {string} label - Accessible label.
- * @param {string} icon - Visible icon text.
+ * Creates a task action button for app.js event delegation.
+ * @param {Object} task - Task object.
+ * @param {string} action - Task action name.
+ * @param {string} text - Visible button text.
  * @returns {HTMLButtonElement} Button element.
  */
-function createIconButton(className, label, icon) {
-  const button = createEl('button', className, icon);
+function createTaskActionButton(task, action, text) {
+  const button = createEl('button', `task-card__action task-card__action--${action}`, text);
+
   button.type = 'button';
-  button.setAttribute('aria-label', label);
+  button.dataset.taskAction = action;
+  button.dataset.taskId = task.id;
+  button.setAttribute('aria-label', `${text} ${task.title}`);
+
+  if (task.projectId) {
+    button.dataset.projectId = task.projectId;
+  }
 
   return button;
 }
@@ -1034,13 +1072,28 @@ function buildTaskForm(task) {
   const form = createEl('form', 'task-form');
 
   appendTextField(form, 'Title', 'task-form-title', 'title', task.title || '', true);
+  appendTaskTitleError(form);
   appendTextareaField(form, task.description || '');
   appendDateField(form, task.dueDate || null);
-  appendSelectField(form, 'Priority', 'task-form-priority', 'priority', getPriorityOptions(), task.priority || 'none');
-  appendSelectField(form, 'Category', 'task-form-category', 'category', getCategoryOptions(), task.category || '');
+  appendSelectField(form, 'Priority', 'task-form-priority', 'priority', getPriorityOptions(), task.priority || DEFAULT_PRIORITY);
+  appendSelectField(form, 'Category', 'task-form-category', 'category', getCategoryOptions(task.category || ''), task.category || '');
+  appendSelectField(form, 'Status', 'task-form-status', 'status', getStatusOptions(), task.status || STATUS_TODO);
   form.appendChild(buildTaskFormActions());
 
   return form;
+}
+
+/**
+ * Appends inline title validation space to the task form.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @returns {void}
+ */
+function appendTaskTitleError(form) {
+  const error = createEl('p', 'task-form__error');
+
+  error.dataset.taskError = 'title';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
 }
 
 /**
@@ -1163,14 +1216,31 @@ function getPriorityOptions() {
 
 /**
  * Gets category select options.
+ * @param {string} selectedValue - Existing selected category.
  * @returns {Array} Category options.
  */
-function getCategoryOptions() {
+function getCategoryOptions(selectedValue) {
   const categoryOptions = CATEGORIES.map((value) => ({ value, label: value }));
+
+  if (selectedValue && !CATEGORIES.includes(selectedValue) && selectedValue !== 'custom') {
+    categoryOptions.push({ value: selectedValue, label: selectedValue });
+  }
 
   categoryOptions.push({ value: 'custom', label: 'Custom…' });
 
   return categoryOptions;
+}
+
+/**
+ * Gets status select options.
+ * @returns {Array} Status options.
+ */
+function getStatusOptions() {
+  return [
+    { value: STATUS_TODO, label: 'To do' },
+    { value: STATUS_PROGRESS, label: 'In progress' },
+    { value: STATUS_DONE, label: 'Done' },
+  ];
 }
 
 /**

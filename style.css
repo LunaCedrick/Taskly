@@ -1083,3 +1083,65 @@ ol {
     justify-content: flex-end;
   }
 }
+
+/* TASK MANAGEMENT UI - SESSION 8 */
+.task-card__status {
+  padding: 2px 8px;
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.task-card__status--done {
+  color: var(--color-status-done);
+}
+
+.task-card__status--inprogress {
+  color: var(--color-status-progress);
+}
+
+.task-card__status--todo {
+  color: var(--color-status-todo);
+}
+
+.task-card__checkbox {
+  width: 44px;
+  height: 44px;
+  margin-top: 0;
+}
+
+.task-card__action {
+  min-height: 44px;
+  padding: 4px 8px;
+  color: var(--color-text-muted);
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  transition: color var(--transition-fast), border-color var(--transition-fast), background var(--transition-fast);
+}
+
+.task-card__action:hover {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+}
+
+.task-card__action--delete:hover {
+  color: var(--color-overdue-text);
+  border-color: var(--color-overdue-border);
+  background: var(--color-overdue-bg);
+}
+
+.task-form__error {
+  min-height: 16px;
+  color: var(--color-overdue-text);
+  font-size: 12px;
+}
+
+.task-form__custom-category {
+  display: none;
+}
