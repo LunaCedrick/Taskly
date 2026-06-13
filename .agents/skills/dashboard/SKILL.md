@@ -1,6 +1,6 @@
 ---
 name: dashboard
-description: Session 6 of 17: build the Taskly dashboard view shell and dashboard styling for aggregated stats, overdue, today, upcoming, and recent activity sections. Use when implementing the dashboard feature after ui.js and db.js exist, while leaving app.js listener wiring to Session 13.
+description: "Session 6 of 17: build the Taskly dashboard view shell and dashboard styling for aggregated stats, overdue, today, upcoming, and recent activity sections. Use when implementing the dashboard feature after ui.js and db.js exist, while leaving app.js listener wiring to Session 13."
 ---
 
 # Session 6 - Dashboard
