@@ -304,6 +304,162 @@ function renderTaskList(tasks, filters, searchQuery) {
 }
 
 /**
+ * Renders status, priority, and category filter controls.
+ * Filtering itself is handled by app.js in Session 13.
+ * @param {Object} filters - Current filter values.
+ * @param {Array} categories - Category labels to expose.
+ * @returns {void}
+ */
+function renderTaskFilters(filters, categories) {
+  const container = document.getElementById('task-filter-bar');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildFilterGroup('Status', 'status', getStatusFilterOptions()));
+  container.appendChild(buildFilterGroup('Priority', 'priority', getPriorityFilterOptions()));
+  container.appendChild(buildFilterGroup('Category', 'category', getCategoryFilterOptions(categories)));
+  updateActiveFilters(filters || {});
+}
+
+/**
+ * Updates active filter button states without rebuilding task cards.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateActiveFilters(filters) {
+  const container = document.getElementById('task-filter-bar');
+
+  if (!container) {
+    return;
+  }
+
+  updateFilterButtons(container, filters || {});
+}
+
+/**
+ * Builds a filter group block.
+ * @param {string} label - Visible group label.
+ * @param {string} type - Filter type.
+ * @param {Array} options - Filter option configs.
+ * @returns {HTMLElement} Filter group element.
+ */
+function buildFilterGroup(label, type, options) {
+  const group = createEl('section', 'task-filter-group');
+  const optionsWrap = createEl('div', 'task-filter-options');
+
+  group.setAttribute('aria-label', `${label} filter`);
+  group.appendChild(createEl('span', 'task-filter-group__label', label));
+  options.forEach((option) => optionsWrap.appendChild(buildFilterOption(type, option)));
+  group.appendChild(optionsWrap);
+
+  return group;
+}
+
+/**
+ * Builds one filter option button.
+ * @param {string} type - Filter type.
+ * @param {Object} option - Filter option config.
+ * @returns {HTMLButtonElement} Filter button.
+ */
+function buildFilterOption(type, option) {
+  const button = createEl('button', 'task-filter-option', option.label);
+
+  button.type = 'button';
+  button.dataset.filterType = type;
+  button.dataset.filterValue = option.value;
+  button.setAttribute('aria-pressed', 'false');
+
+  return button;
+}
+
+/**
+ * Updates all filter buttons for the current filters.
+ * @param {HTMLElement} container - Filter bar container.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateFilterButtons(container, filters) {
+  const buttons = container.querySelectorAll('[data-filter-type][data-filter-value]');
+
+  buttons.forEach((button) => updateFilterButton(button, filters));
+}
+
+/**
+ * Updates one filter button active state.
+ * @param {HTMLButtonElement} button - Filter option button.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateFilterButton(button, filters) {
+  const type = button.dataset.filterType;
+  const selectedValue = filters[type] || 'all';
+  const isActive = button.dataset.filterValue === selectedValue;
+
+  button.classList.toggle('task-filter-option--active', isActive);
+  button.setAttribute('aria-pressed', String(isActive));
+}
+
+/**
+ * Gets status filter options.
+ * @returns {Array} Status filter options.
+ */
+function getStatusFilterOptions() {
+  return [
+    { value: 'all', label: 'All' },
+    { value: STATUS_TODO, label: 'To do' },
+    { value: STATUS_PROGRESS, label: 'In progress' },
+    { value: STATUS_DONE, label: 'Done' },
+  ];
+}
+
+/**
+ * Gets priority filter options.
+ * @returns {Array} Priority filter options.
+ */
+function getPriorityFilterOptions() {
+  return ['all', 'high', 'medium', 'low', DEFAULT_PRIORITY].map((value) => ({
+    value,
+    label: getFilterLabel(value),
+  }));
+}
+
+/**
+ * Gets category filter options.
+ * @param {Array} categories - Category labels from app.js.
+ * @returns {Array} Category filter options.
+ */
+function getCategoryFilterOptions(categories) {
+  const uniqueCategories = [...new Set((categories || []).filter(Boolean))];
+  const options = [{ value: 'all', label: 'All' }];
+
+  uniqueCategories.forEach((category) => {
+    options.push({ value: category, label: category });
+  });
+
+  return options;
+}
+
+/**
+ * Converts filter values to human-readable labels.
+ * @param {string} value - Filter value.
+ * @returns {string} Human-readable label.
+ */
+function getFilterLabel(value) {
+  const labels = {
+    all: 'All',
+    todo: 'To do',
+    inprogress: 'In progress',
+    done: 'Done',
+    none: 'None',
+  };
+
+  return labels[value] || value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
  * Gets the empty state type for a rendered task list.
  * @param {Object} filters - Current filter values.
  * @param {string} searchQuery - Current search query.
@@ -1332,6 +1488,8 @@ window.ui = {
   renderProjectList,
   renderProjectView,
   renderTaskList,
+  renderTaskFilters,
+  updateActiveFilters,
   renderTaskCard,
   renderDashboard,
   renderStats,
