@@ -1,6 +1,6 @@
 ---
 name: db
-description: Firestore CRUD functions, real-time listeners, collection group query for dashboard, user profile saving, and activity log writing.
+description: Session 4 of 17: Firestore CRUD, real-time listeners, collection group query, and activity log.
 ---
 ## Session: 4 of 17
 ## Scope: db.js — ALL Firestore CRUD · real-time listeners · collection group query · activity log
