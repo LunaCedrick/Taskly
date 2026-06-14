@@ -889,6 +889,7 @@ function showAddTaskModal() {
 
   currentEditingTaskId = null;
   ui.showAddTaskModal();
+  clearTaskFormError();
 }
 
 /**
@@ -897,6 +898,7 @@ function showAddTaskModal() {
  */
 function showAddProjectModal() {
   ui.showAddProjectModal();
+  clearProjectFormError();
 }
 
 /**
@@ -908,6 +910,7 @@ function showEditProjectModal() {
 
   if (project) {
     ui.showEditProjectModal(project);
+    clearProjectFormError();
   }
 }
 
@@ -924,6 +927,7 @@ async function handleProjectFormSubmit(form) {
     return;
   }
 
+  clearProjectFormError();
   await saveProjectForm(form, name);
 }
 
@@ -962,6 +966,7 @@ async function handleTaskFormSubmit(form) {
     return;
   }
 
+  clearTaskFormError();
   await saveTaskForm(form, taskData);
 }
 
@@ -1232,12 +1237,28 @@ function setTaskFormError(message) {
 }
 
 /**
+ * Clears task form validation messaging.
+ * @returns {void}
+ */
+function clearTaskFormError() {
+  ui.clearTaskModalValidation();
+}
+
+/**
  * Sets a project form validation message.
  * @param {string} message - Validation message.
  * @returns {void}
  */
 function setProjectFormError(message) {
   ui.renderProjectModalValidation(message);
+}
+
+/**
+ * Clears project form validation messaging.
+ * @returns {void}
+ */
+function clearProjectFormError() {
+  ui.clearProjectModalValidation();
 }
 
 /**

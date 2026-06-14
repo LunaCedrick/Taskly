@@ -1,274 +1,138 @@
 ---
 name: review
-description: Run a full QA audit of all code produced in the current session, based on the rules in AGENTS.md
----
-## Session: Run after EVERY session (required by AGENTS.md §16)
-## Scope: Full QA audit of all code produced in the current session
-## References: AGENTS.md §2, §4, §5, §6, §8, §9, §10, §11, §12, §13, §14
-
+description: "Run Taskly Session 14 QA or the required post-session review using deterministic static checks plus targeted manual/runtime verification. Use after every build session before commit, and for full-codebase QA against AGENTS.md and PLAN.md."
 ---
 
-AGENTS.md is the source of truth for every rule in this checklist.
-This skill translates those rules into a structured pass/fail audit.
-Run this after every session — before every commit.
+# Session 14 Skill: review
 
-Output format for every item:
-✅ PASS — rule satisfied
-⚠️ WARN — not a blocker but should be noted
-❌ FAIL — must be fixed before committing
+## Purpose
 
-Do not commit with any ❌ FAIL items open.
+Run the Taskly QA gate. This skill is both:
 
----
+- the required review after every build session
+- Session 14 full-codebase QA after Sessions 1-13 are implemented
 
-## HOW TO RUN THIS REVIEW
+`AGENTS.md` is the source of truth. `PLAN.md` is the product and architecture reference. The static script handles repeatable checks; the reviewer handles runtime behavior, browser/Firebase checks, and judgment calls.
 
-1. Read every checklist item below
-2. Check the code produced in this session against it
-3. Output a full report — every item gets ✅ ⚠️ or ❌
-4. Fix all ❌ FAIL items immediately
-5. Re-check fixed items and confirm ✅
-6. List every change made during fixes
-7. Only then proceed to commit
+## Required Reading
 
----
+Read these before reviewing:
 
-## 1. FILE SCOPE — Did this session touch only what it should?
+- `AGENTS.md`
+- `PLAN.md`
+- `.agents/skills/review/SKILL.md`
 
-- [ ] Only the files assigned to this session were modified
-- [ ] No module was edited outside its assigned skill scope
-- [ ] No new files were created that are not in AGENTS.md §4
-- [ ] No files were deleted that should still exist
+If `.agents/ALIGNMENT_FIXES.md` has active items, use the alignment-fix workflow before accepting a review as final.
 
----
+## Review Workflow
 
-## 2. HTML AUDIT — See AGENTS.md §10
+1. Run the deterministic static audit:
 
-- [ ] Semantic tags used — header, nav, main, section, aside, footer
-- [ ] No inline styles anywhere in HTML
-- [ ] No JS logic in HTML — no onclick, no onchange attributes
-- [ ] All images have descriptive alt attributes
-- [ ] All interactive elements have aria-label or aria-labelledby
-- [ ] All modals have role="dialog" and aria-modal="true"
-- [ ] All error messages have role="alert"
-- [ ] Scripts at bottom of body only
-- [ ] Script load order matches AGENTS.md §4 exactly:
-      config.js → auth.js → router.js → db.js → ui.js → app.js
-- [ ] Firebase CDN scripts load before config.js in head
-- [ ] Google Fonts link loads before style.css in head
-- [ ] All HTML IDs match AGENTS.md §9 — no invented IDs
-
----
-
-## 3. CSS AUDIT — See AGENTS.md §2, §10
-
-- [ ] All styles are in style.css — no inline styles, no style tags
-- [ ] All color values use CSS custom properties — no hardcoded hex
-- [ ] All --color-* tokens from AGENTS.md §2 are present in :root
-- [ ] No CSS frameworks referenced — no Bootstrap, Tailwind, etc.
-- [ ] Animations use only transform and opacity
-- [ ] All transitions are 0.15s ease
-- [ ] No !important declarations
-- [ ] CSS sections have comment headers explaining purpose
-- [ ] BEM naming followed — .block__element--modifier
-- [ ] All class names are kebab-case
-
----
-
-## 4. JAVASCRIPT AUDIT — See AGENTS.md §10
-
-- [ ] ES6+ only — const and let used, never var
-- [ ] No jQuery or any external JS libraries
-- [ ] No eval(), no dynamic script creation
-- [ ] textContent used for ALL user-supplied or Firestore data
-- [ ] innerHTML never used for external data — zero exceptions
-- [ ] try/catch wraps every async Firebase operation
-- [ ] Every function has a JSDoc comment above it
-- [ ] JSDoc includes @param and @returns for every function
-- [ ] No console.log statements anywhere
-- [ ] No commented-out code blocks
-- [ ] All function names are camelCase
-- [ ] All variable names are camelCase
-- [ ] All constants are SCREAMING_SNAKE_CASE
-- [ ] No function exceeds ~25 lines — split if longer
-
----
-
-## 5. MODULE BOUNDARY AUDIT — See AGENTS.md §5
-
-Run this for every module touched this session.
-
-### config.js
-- [ ] No functions defined
-- [ ] No DOM access
-- [ ] No Firestore queries
-
-### auth.js (if touched)
-- [ ] No DOM manipulation
-- [ ] No Firestore read queries
-- [ ] No application state assignments (state.anything)
-
-### router.js (if touched)
-- [ ] No Firebase calls beyond firebase.auth().currentUser
-- [ ] No application state assignments
-- [ ] No event listeners for user actions
-- [ ] No ui.render*() calls
-
-### db.js (if touched)
-- [ ] No DOM access — never touches HTML
-- [ ] No ui.render*() calls
-- [ ] No application state assignments
-
-### ui.js (if touched)
-- [ ] No Firebase calls of any kind
-- [ ] No application state assignments
-- [ ] No business logic — rendering only
-- [ ] textContent used for all external data
-
-### app.js (if touched)
-- [ ] No user-visible DOM writes when AGENTS.md defines a ui.js helper
-- [ ] No direct Firebase calls — always calls db.js
-- [ ] All Firestore listener references stored in state.listeners
-
----
-
-## 6. APPLICATION STATE AUDIT — See AGENTS.md §6
-
-Only relevant if app.js was touched this session.
-
-- [ ] state object lives only in app.js — nowhere else
-- [ ] state object contains all required fields from AGENTS.md §6:
-      user, currentProjectId, projects, tasks, dashboardTasks,
-      activities, filters, searchQuery, notifications,
-      listeners, isOffline
-- [ ] No other module reads or writes state directly
-- [ ] Every onSnapshot reference is pushed to state.listeners
-- [ ] Listener cleanup on sign-out calls all unsub functions
-- [ ] state.listeners reset to [] after cleanup
-
----
-
-## 7. SECURITY AUDIT — See AGENTS.md §13
-
-- [ ] config.js is NOT staged in git status
-- [ ] config.js is in .gitignore
-- [ ] config.example.js has no real API key values
-- [ ] No real Firebase keys appear anywhere in committed files
-- [ ] textContent used everywhere — no innerHTML for external data
-- [ ] All Firestore input is trimmed before writing
-- [ ] Priority values validated against allowed set before writing
-- [ ] Status values validated against allowed set before writing
-- [ ] External links use rel="noopener noreferrer"
-- [ ] No eval() anywhere
-- [ ] No dynamic script creation anywhere
-
----
-
-## 8. ERROR HANDLING AUDIT — See AGENTS.md §8
-
-- [ ] Every async Firebase operation has try/catch
-- [ ] No raw Firebase error codes shown to users
-- [ ] Every caught error maps to a human-readable message
-- [ ] Human-readable messages match AGENTS.md §8 table exactly
-- [ ] Errors render in context — not only in the console
-- [ ] Error elements have role="alert"
-- [ ] No silent failures — every error path is visible
-
----
-
-## 9. FIREBASE ARCHITECTURE AUDIT — See AGENTS.md §7
-
-Only relevant for sessions touching Firebase directly.
-
-- [ ] Every task document includes userId field
-- [ ] Collection group query filters by userId
-- [ ] One listener per collection — never one per document
-- [ ] Offline persistence enabled in config.js using compat style:
-      db_firestore.enablePersistence({ synchronizeTabs: false })
-- [ ] No modular Firebase imports (import { } from 'firebase/...')
-- [ ] All Firebase access uses compat SDK globals
-
----
-
-## 10. GIT AUDIT — See AGENTS.md §14
-
-Run before every commit.
-
-- [ ] git status shows no config.js
-- [ ] git status shows no node_modules
-- [ ] Commit message follows convention from AGENTS.md §14:
-      feat: / fix: / style: / refactor: / docs:
-- [ ] Only files from this session's scope are staged
-- [ ] No console.log statements in staged files
-- [ ] Pushing to dev branch — never directly to main
-
----
-
-## 11. BROWSER CHECK
-
-Open index.html in browser and confirm:
-
-- [ ] No errors in browser console
-- [ ] No 404s for any linked file (CSS, JS, fonts)
-- [ ] Correct fonts loaded — DM Sans visible
-- [ ] Correct colors — violet accent, indigo sidebar
-- [ ] No layout breaks at 375px viewport width
-- [ ] Expected behavior for this session works end to end
-
-If browser automation cannot start or times out before app assertions run:
-
-- Report `⚠️ WARN — Browser Check — automation unavailable or timed out`.
-- Do not report browser availability as `✅ PASS`.
-- Do not report browser availability as `❌ FAIL` unless the session
-  explicitly requires a runtime browser pass and no alternative validation is
-  acceptable.
-- Continue and list static checks separately.
-
----
-
-## REPORT FORMAT
-
-Output exactly this structure after running the audit:
-
+```powershell
+python .agents\skills\review\scripts\static_review.py --session SESSION_NUMBER --skill SKILL_NAME
 ```
+
+2. Inspect every `FAIL` and `WARN` from the script.
+3. Perform the relevant manual checks from `scripts/runtime_checklist.md`.
+4. Fix all `FAIL` items before commit.
+5. Rerun the static audit after fixes.
+6. Output the formal report using the exact format below.
+
+The static script is read-only. It must never edit, format, stage, commit, generate production artifacts, or mutate tracked project files.
+
+## What Static QA Covers
+
+The script checks the repeatable parts of AGENTS/PLAN:
+
+- Git safety: branch, changed files, staged risks, `config.js`, `node_modules`
+- HTML contracts: inline styles/handlers, script order, required IDs, canonical `#notif-count`
+- CSS contracts: color token presence, hardcoded hex outside `:root`, `!important`, transition/animation risks
+- JavaScript contracts: `node --check`, `var`, `console.log`, `eval`, dynamic scripts, `innerHTML`, JSDoc coverage
+- Module boundaries: no Firebase in UI, no DOM in DB/auth, no direct Firebase in app, listener tracking in app
+- Firebase architecture: compat SDK, no modular imports, persistence call, collection group user filter, task `userId`
+- Contract drift: stale names/APIs such as legacy notification badge ID and old DB API names
+- Current alignment contracts: UI helper boundary, settings navigation, notification settings status/help, dashboard listener resubscribe
+
+Treat script `FAIL` output as blocking unless the script itself is clearly wrong. If the script is wrong, fix the review script or document the exact false positive in the report.
+
+## What Manual QA Must Cover
+
+Use `scripts/runtime_checklist.md` for behavior that static analysis cannot prove:
+
+- real Google sign-in and sign-out
+- Firestore project/task CRUD
+- dashboard aggregation and transient dashboard listener recovery
+- realtime updates across tabs/devices
+- offline queue and sync on reconnect
+- notification panel, in-app alerts, and browser notification permission behavior
+- browser console and missing asset checks
+- 375px responsive smoke check
+
+If browser automation cannot start or times out before app assertions run, report:
+
+```text
+WARN - Browser Check - automation unavailable or timed out
+```
+
+Do not count unavailable automation as `PASS`. Do not count it as `FAIL` unless the session explicitly requires a runtime browser pass and no alternative validation is acceptable.
+
+## Current Contracts To Enforce
+
+- `#notif-count` is the only notification badge ID; stale `#notification-count` is not allowed in production code.
+- `app.js` owns state and event listeners.
+- `app.js` must use `ui.renderSidebarUser()`, task modal validation helpers, and project modal validation helpers for those user-visible writes when the helpers exist.
+- Settings must have a visible `data-view="settings"` navigation entry.
+- Settings v1 shows notification permission status/help and must not promise a working enable toggle unless a public permission request contract exists.
+- `listenToDashboardTasks()` transient `"Unable to load data. Please try again."` errors must trigger app-level re-subscribe instead of a persistent user error.
+- Every Firestore listener unsubscribe must be tracked and cleaned up on sign-out.
+- New tasks must include `userId` through the DB write path.
+- No scheduled 8AM push notifications belong in MVP.
+
+## Formal Report Format
+
+Output exactly:
+
+```text
 SESSION REVIEW REPORT
-Session: [number] — [skill name]
+Session: [number] - [skill name]
 Date: [date]
 
 SUMMARY
-✅ PASS : [count]
-⚠️ WARN : [count]
-❌ FAIL : [count]
+PASS : [count]
+WARN : [count]
+FAIL : [count]
 
-FAILS — must fix before commit
-❌ [section] — [item] — [what to fix]
+FAILS - must fix before commit
+FAIL - [section] - [item] - [what to fix]
 
-WARNINGS — note but not blocking
-⚠️ [section] — [item] — [note]
+WARNINGS - note but not blocking
+WARN - [section] - [item] - [note]
 
 FIXES APPLIED
 - [description of each fix made]
 
 FINAL STATUS
-[READY TO COMMIT] or [DO NOT COMMIT — fixes pending]
+[READY TO COMMIT] or [DO NOT COMMIT - fixes pending]
 ```
 
----
+If there are no failures, write `None.` under `FAILS`. If there are no warnings, write `None.` under `WARNINGS`.
 
-## HARD RULES — NON-NEGOTIABLE
+## Hard Fail Rules
 
-These items are instant ❌ FAIL regardless of context.
-No exceptions. No justifications accepted.
+These are always blocking:
 
-```
-innerHTML used for external data          → ❌ FAIL always
-var used anywhere                         → ❌ FAIL always
-console.log in committed code             → ❌ FAIL always
-config.js staged in git                   → ❌ FAIL always
-Firebase modular imports used             → ❌ FAIL always
-No try/catch on async Firebase operation  → ❌ FAIL always
-userId missing from task document         → ❌ FAIL always
-Function has no JSDoc comment             → ❌ FAIL always
-Inline style in HTML                      → ❌ FAIL always
-Hardcoded color hex outside :root         → ❌ FAIL always
-```
+- `innerHTML` in production JavaScript
+- `var` in production JavaScript
+- `console.log` in committed JavaScript
+- `config.js` staged or tracked
+- Firebase modular imports
+- async Firebase write/read/listener path without error handling
+- task write path missing `userId`
+- function without JSDoc in production JavaScript
+- inline style or inline JS handler in HTML
+- hardcoded color hex outside `:root`
+- direct Firebase calls from `app.js`
+- Firebase calls or application state management in `ui.js`
+- DOM access or UI rendering in `db.js`
+
+Do not mark `READY TO COMMIT` with any hard fail open.
