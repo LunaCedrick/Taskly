@@ -9,7 +9,7 @@ Use `.agents/skills/alignment-fix/SKILL.md` before editing this file.
 
 ### Settings Navigation Trigger
 
-Status: ready-for-code-fix
+Status: code-fixed
 
 Problem: `app.js` supports `data-view="settings"` and `#view-settings`
 exists, but there is no visible settings navigation trigger in `index.html`.
