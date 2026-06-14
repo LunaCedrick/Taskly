@@ -898,15 +898,61 @@ function buildErrorBanner(message) {
  */
 function renderNotificationPanel(notifications) {
   const container = document.getElementById('notification-panel');
+  const safeNotifications = notifications || [];
 
   if (!container) {
     return;
   }
 
   clearContainer(container);
-  container.appendChild(notifications.length === 0
+  container.appendChild(buildNotificationPanelHeader(safeNotifications));
+  container.appendChild(safeNotifications.length === 0
     ? createEl('p', 'notification-empty', 'No notifications')
-    : buildNotificationFragment(notifications));
+    : buildNotificationList(safeNotifications));
+}
+
+/**
+ * Builds the notification panel header.
+ * @param {Array} notifications - Notification objects to render.
+ * @returns {HTMLElement} Notification panel header.
+ */
+function buildNotificationPanelHeader(notifications) {
+  const header = createEl('div', 'notification-panel__header');
+
+  header.appendChild(createEl('h2', 'notification-panel__title', 'Notifications'));
+
+  if (notifications.length > 0) {
+    header.appendChild(buildClearNotificationsButton());
+  }
+
+  return header;
+}
+
+/**
+ * Builds the clear-all notification button.
+ * @returns {HTMLButtonElement} Clear-all button.
+ */
+function buildClearNotificationsButton() {
+  const button = createEl('button', 'notification-panel__action', 'Clear all');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'clear-all';
+  button.setAttribute('aria-label', 'Clear all notifications');
+
+  return button;
+}
+
+/**
+ * Builds the notification list wrapper.
+ * @param {Array} notifications - Notification objects to render.
+ * @returns {HTMLElement} Notification list.
+ */
+function buildNotificationList(notifications) {
+  const list = createEl('div', 'notification-list');
+
+  list.appendChild(buildNotificationFragment(notifications));
+
+  return list;
 }
 
 /**
@@ -936,11 +982,177 @@ function buildNotificationItem(notification) {
     item.classList.add('notification-item--unread');
   }
 
-  item.dataset.notificationId = notification.id;
+  if (notification.id) {
+    item.dataset.notificationId = notification.id;
+  }
+
+  if (notification.taskId) {
+    item.dataset.taskId = notification.taskId;
+  }
+
+  if (notification.projectId) {
+    item.dataset.projectId = notification.projectId;
+  }
+
+  item.appendChild(createEl('span', 'notification-item__type', getNotificationTypeLabel(notification.type)));
   item.appendChild(createEl('p', 'notification-item__message', notification.message));
   item.appendChild(createEl('span', 'notification-item__time', formatDate(notification.timestamp)));
+  item.appendChild(buildNotificationItemActions(notification));
 
   return item;
+}
+
+/**
+ * Builds action controls for a notification item.
+ * @param {Object} notification - Notification object.
+ * @returns {HTMLElement} Notification action wrapper.
+ */
+function buildNotificationItemActions(notification) {
+  const actions = createEl('div', 'notification-item__actions');
+
+  if (!notification.read) {
+    actions.appendChild(buildMarkReadButton(notification));
+  }
+
+  return actions;
+}
+
+/**
+ * Builds the mark-as-read button for a notification.
+ * @param {Object} notification - Notification object.
+ * @returns {HTMLButtonElement} Mark-read button.
+ */
+function buildMarkReadButton(notification) {
+  const button = createEl('button', 'notification-item__button', 'Mark as read');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'mark-read';
+
+  if (notification.id) {
+    button.dataset.notificationId = notification.id;
+  }
+
+  button.setAttribute('aria-label', 'Mark notification as read');
+
+  return button;
+}
+
+/**
+ * Converts notification type values to readable labels.
+ * @param {string} type - Notification type.
+ * @returns {string} Readable notification type.
+ */
+function getNotificationTypeLabel(type) {
+  const labels = {
+    overdue: 'Overdue',
+    today: 'Due today',
+    task_completed: 'Completed',
+    task_created: 'Created',
+    system: 'System',
+  };
+
+  return labels[type] || 'System';
+}
+
+/**
+ * Renders dashboard in-app alert banners.
+ * @param {Array} alerts - Notification alert objects.
+ * @returns {void}
+ */
+function renderNotificationAlerts(alerts) {
+  const container = document.getElementById('notification-alerts');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  (alerts || []).forEach((alert) => container.appendChild(buildNotificationAlert(alert)));
+}
+
+/**
+ * Builds a dismissible dashboard notification alert.
+ * @param {Object} alert - Alert object to render.
+ * @returns {HTMLElement} Notification alert element.
+ */
+function buildNotificationAlert(alert) {
+  const banner = createEl('div', `notification-alert notification-alert--${alert.type || 'system'}`);
+
+  banner.setAttribute('role', 'alert');
+
+  if (alert.id) {
+    banner.dataset.notificationId = alert.id;
+  }
+
+  banner.appendChild(createEl('p', 'notification-alert__message', getNotificationAlertMessage(alert)));
+  banner.appendChild(buildNotificationAlertDismiss(alert));
+
+  return banner;
+}
+
+/**
+ * Builds alert copy from app-provided notification alert data.
+ * @param {Object} alert - Alert object.
+ * @returns {string} Alert message.
+ */
+function getNotificationAlertMessage(alert) {
+  if (alert.message) {
+    return alert.message;
+  }
+
+  if (alert.type === 'overdue') {
+    return `${alert.count || 0} tasks are overdue`;
+  }
+
+  if (alert.type === 'today') {
+    return `You have ${alert.count || 0} tasks due today`;
+  }
+
+  return 'Taskly notification';
+}
+
+/**
+ * Builds a dismiss button for an alert banner.
+ * @param {Object} alert - Alert object.
+ * @returns {HTMLButtonElement} Dismiss button.
+ */
+function buildNotificationAlertDismiss(alert) {
+  const button = createEl('button', 'notification-alert__dismiss', 'Dismiss');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'dismiss-alert';
+
+  if (alert.id) {
+    button.dataset.notificationId = alert.id;
+  }
+
+  button.setAttribute('aria-label', 'Dismiss notification alert');
+
+  return button;
+}
+
+/**
+ * Shows the notification panel.
+ * @returns {void}
+ */
+function showNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+
+  if (panel) {
+    panel.hidden = false;
+  }
+}
+
+/**
+ * Hides the notification panel.
+ * @returns {void}
+ */
+function hideNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+
+  if (panel) {
+    panel.hidden = true;
+  }
 }
 
 /**
@@ -1496,6 +1708,7 @@ window.ui = {
   renderSkeletonCards,
   renderEmptyState,
   renderErrorBanner,
+  renderNotificationAlerts,
   renderNotificationPanel,
   renderActivityFeed,
   showAddProjectModal,
@@ -1504,6 +1717,8 @@ window.ui = {
   showEditTaskModal,
   showConfirmModal,
   hideModal,
+  showNotificationPanel,
+  hideNotificationPanel,
   showOfflineBanner,
   hideOfflineBanner,
   updateNotificationBadge,
