@@ -100,6 +100,9 @@ Required new target inside `#view-dashboard` if it does not already exist:
 Do not rename notification targets. Do not add a second notification bell or a
 second notification panel.
 
+`#notif-count` is the only canonical notification badge ID. Do not add,
+preserve, or fallback to `#notification-count`; that ID is stale.
+
 ## Notification Data Contract
 
 Notification objects passed from app.js to ui.js must follow this shape:
@@ -208,6 +211,7 @@ Rules:
 - Keep `aria-live="polite"` on the badge.
 - Hide the badge when unread count is zero.
 - Show the badge when unread count is greater than zero.
+- Do not use `#notification-count` as a fallback or alias.
 - Do not store unread count in the DOM as state; app.js owns the count.
 
 Session 13 wires the bell click to show or hide the panel.
@@ -279,6 +283,7 @@ After implementation:
 - Open `index.html` and confirm no console errors.
 - Confirm `#notification-bell`, `#notif-count`, and `#notification-panel` still
   exist.
+- Confirm `#notification-count` is not introduced or preserved in new code.
 - Call `ui.updateNotificationBadge(3)` and confirm the badge shows `3`.
 - Call `ui.updateNotificationBadge(0)` and confirm the badge hides.
 - Call `ui.renderNotificationPanel([mockNotification])` and confirm the panel

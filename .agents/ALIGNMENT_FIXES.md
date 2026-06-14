@@ -9,7 +9,7 @@ Use `.agents/skills/alignment-fix/SKILL.md` before editing this file.
 
 ### Settings Navigation Trigger
 
-Status: pending-docs
+Status: ready-for-code-fix
 
 Problem: `app.js` supports `data-view="settings"` and `#view-settings`
 exists, but there is no visible settings navigation trigger in `index.html`.
@@ -33,6 +33,8 @@ Code Fix:
 - Rerun the updated settings skill or a focused settings fix to add the
   settings nav trigger.
 - Confirm the updated app skill already handles routing.
+- Read-only scan: no `data-view="settings"` trigger currently exists in
+  `index.html` or `js/`.
 
 Review:
 
@@ -40,7 +42,7 @@ Review:
 
 ### App DOM Write Boundary
 
-Status: pending-docs
+Status: ready-for-code-fix
 
 Problem: `app.js` performs narrow DOM writes for sidebar user fields and
 inline modal validation because no exported `ui.js` helpers exist for those
@@ -65,6 +67,8 @@ Code Fix:
 - Rerun the updated UI skill or a focused UI fix to add helpers.
 - Rerun the updated app skill or a focused app fix to replace direct DOM
   writes with those helpers.
+- Read-only scan: `js/app.js` still writes sidebar user fields and modal
+  validation directly.
 
 Review:
 
@@ -73,7 +77,7 @@ Review:
 
 ### Notification Badge Canonical ID
 
-Status: pending-docs
+Status: ready-for-code-fix
 
 Problem: `ui.updateNotificationBadge()` still contains a legacy fallback
 lookup for `#notification-count`, while `#notif-count` is canonical.
@@ -95,6 +99,7 @@ Code Fix:
 
 - Rerun the updated UI skill or a focused UI fix to remove the fallback
   from `ui.updateNotificationBadge()`.
+- Read-only scan: `js/ui.js` still references `#notification-count`.
 
 Review:
 
@@ -102,7 +107,7 @@ Review:
 
 ### Notification Settings Action
 
-Status: pending-docs
+Status: ready-for-code-fix
 
 Problem: Settings wording says notification toggle, but the auth module does
 not export a permission-request helper after first login. Current behavior can
@@ -126,9 +131,12 @@ Contract update:
 
 Code Fix:
 
-- No immediate code fix is required if current behavior only shows status/help.
-- If enabling from settings is desired, first update AGENTS and auth/app skills
-  with a public permission-request contract.
+- Rerun the updated settings skill or a focused settings UI fix to revise
+  notification action copy/status so it does not promise enabling notifications.
+- If enabling from settings is desired later, first update AGENTS and auth/app
+  skills with a public permission-request contract.
+- Read-only scan: `js/ui.js` still renders `Enable notifications` for default
+  or unknown status.
 
 Review:
 
@@ -136,7 +144,7 @@ Review:
 
 ### Review Browser Automation Timeout
 
-Status: pending-docs
+Status: closed
 
 Problem: Multiple formal reviews produced browser automation timeout warnings.
 The review skill should distinguish an unavailable browser environment from a
@@ -158,6 +166,8 @@ Contract update:
 Code Fix:
 
 - None. This is a review-reporting contract update only.
+- Docs patched in `.agents/skills/review/SKILL.md`; no production code fix is
+  required.
 
 Review:
 

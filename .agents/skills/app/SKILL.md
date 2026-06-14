@@ -66,6 +66,10 @@ Do not call Firebase SDK APIs directly from `app.js`.
 
 Do not call private functions that are not exported by the existing modules.
 
+If a required ui.js helper from AGENTS.md is missing, stop and report the
+missing contract instead of writing user-visible DOM content directly in
+app.js.
+
 ## Required State
 
 Preserve the canonical state shape in `js/app.js`:
@@ -132,6 +136,7 @@ It must:
 - reset session state without losing the signed-in user
 - store the current user in `state.user`
 - render user-facing chrome through existing UI helpers
+- render sidebar user fields through `ui.renderSidebarUser(user)` when present
 - bind DOM event listeners once only
 - initialize offline status from `navigator.onLine`
 - start the projects listener
@@ -337,7 +342,13 @@ Notification status should be derived safely from the browser `Notification` API
 
 Wire settings action hooks:
 
-- notification action: show status/help only unless an exported auth/app contract exists for requesting permission
+- settings navigation: delegated sidebar nav handling must support
+  `data-view="settings"`
+- notification action: show status/help only unless an exported public auth/app
+  contract exists for requesting permission
+- notification action must not call private auth-module internals
+- denied notification help must use exactly:
+  `Notifications disabled. You can enable them in browser settings.`
 - theme action: no-op or coming-soon feedback only
 - sign-out action: use `ui.showSignOutConfirmModal(onConfirm)` when available, otherwise `ui.showConfirmModal(message, onConfirm)`
 
@@ -392,6 +403,17 @@ Do not create new view IDs.
 
 Small DOM reads for event targets and form values are allowed because `app.js` owns event handling. DOM writes should go through `ui.js`.
 
+Required visible write helpers from AGENTS.md:
+
+- `ui.renderSidebarUser(user)` for sidebar profile fields.
+- `ui.renderTaskModalValidation(message)` and
+  `ui.clearTaskModalValidation()` for task modal inline validation.
+- `ui.renderProjectModalValidation(message)` and
+  `ui.clearProjectModalValidation()` for project modal inline validation.
+
+Do not replace these with direct `textContent`, `hidden`, `classList`, or
+attribute writes in app.js once the helpers exist.
+
 ## Validation Requirements
 
 After implementation, run the review skill:
@@ -405,6 +427,8 @@ Minimum local checks for this session:
 - stale API/name scan for forbidden older contracts from the review skill
 - no `console.log` in committed JavaScript
 - no direct Firebase SDK calls in `js/app.js`
+- no private auth-module calls from settings notification actions
+- no direct user-visible DOM writes where AGENTS.md defines a ui.js helper
 - no new writes outside `js/app.js`
 
 Do not duplicate the full review checklist in this skill. Use `.agents/skills/review/SKILL.md` for the formal report.

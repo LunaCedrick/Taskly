@@ -126,7 +126,7 @@ Run this for every module touched this session.
 - [ ] textContent used for all external data
 
 ### app.js (if touched)
-- [ ] No direct DOM manipulation — always calls ui.js
+- [ ] No user-visible DOM writes when AGENTS.md defines a ui.js helper
 - [ ] No direct Firebase calls — always calls db.js
 - [ ] All Firestore listener references stored in state.listeners
 
@@ -214,6 +214,15 @@ Open index.html in browser and confirm:
 - [ ] Correct colors — violet accent, indigo sidebar
 - [ ] No layout breaks at 375px viewport width
 - [ ] Expected behavior for this session works end to end
+
+If browser automation cannot start or times out before app assertions run:
+
+- Report `⚠️ WARN — Browser Check — automation unavailable or timed out`.
+- Do not report browser availability as `✅ PASS`.
+- Do not report browser availability as `❌ FAIL` unless the session
+  explicitly requires a runtime browser pass and no alternative validation is
+  acceptable.
+- Continue and list static checks separately.
 
 ---
 

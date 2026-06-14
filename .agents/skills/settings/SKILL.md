@@ -1,6 +1,6 @@
 ---
 name: settings
-description: "Session 12 of 17: build Taskly settings view UI contracts for profile display, notification permission/status display, theme placeholder, and sign-out confirmation. Use after offline support UI exists, while leaving app.js settings navigation, event listeners, notification permission actions, and sign-out cleanup to Session 13."
+description: "Session 12 of 17: build Taskly settings view UI contracts for visible settings navigation, profile display, notification permission/status help, theme placeholder, and sign-out confirmation. Use after offline support UI exists, while leaving app.js event listeners and sign-out cleanup to Session 13."
 ---
 
 # Session 12 - Settings
@@ -38,9 +38,10 @@ editing files.
 
 This session builds:
 
+- Visible settings navigation trigger in the existing sidebar.
 - Settings view structure inside `#view-settings`.
 - Profile display UI for the signed-in Google user.
-- Notification permission/status UI contract.
+- Notification permission/status help UI contract.
 - Theme placeholder UI for future dark mode.
 - Account section with sign-out confirmation contract.
 - Settings-specific CSS.
@@ -57,7 +58,7 @@ This session does not build:
 - No dark mode implementation.
 - No router changes.
 
-Session 13 wires settings navigation, profile data, notification status,
+Session 13 wires settings navigation events, profile data, notification status,
 settings controls, and sign-out cleanup through app.js.
 
 ## Allowed Files
@@ -86,10 +87,17 @@ Use only canonical IDs from `AGENTS.md`.
 
 Required existing targets:
 
+- Existing sidebar navigation container.
 - `#view-settings`
 - `#user-photo`
 - `#user-name`
 - `#btn-signout`
+
+Required settings navigation trigger:
+
+- Visible sidebar navigation entry with `data-view="settings"`.
+- It must be keyboard reachable and have accessible text or an aria-label.
+- It must use existing sidebar nav item styling and active-state conventions.
 
 Required new targets inside `#view-settings`:
 
@@ -165,9 +173,15 @@ Rules:
 - ui.js must not call `Notification.permission`.
 - ui.js must not call `Notification.requestPermission()`.
 - Permission request behavior remains owned by auth/app contracts.
-- Include a settings control with `data-settings-action="notifications"` for
-  Session 13 to wire if enabling notifications is allowed.
+- Include a settings control or status/help surface with
+  `data-settings-action="notifications"` only when the UI clearly behaves as
+  help/status and does not imply a working enable toggle.
+- Do not render copy that promises enabling notifications from settings unless
+  AGENTS.md and the auth/app skills first define a public permission-request
+  contract.
 - Disable or explain the control when status is `denied` or `unsupported`.
+- For `denied`, show exactly:
+  `Notifications disabled. You can enable them in browser settings.`
 
 ## Theme Placeholder Contract
 
@@ -261,6 +275,7 @@ Rules:
 ## Boundary Rules
 
 - Do not call Firebase, Firestore, Auth, FCM, `Notification`, or `fetch` from ui.js.
+- Do not call private auth-module internals from settings controls.
 - Do not add event listeners in ui.js.
 - Do not mutate app state from ui.js.
 - Do not modify auth.js.
@@ -275,10 +290,14 @@ After implementation:
 
 - Open `index.html` and confirm no console errors.
 - Confirm `#view-settings` exists.
+- Confirm the sidebar has one visible, keyboard-reachable settings entry with
+  `data-view="settings"`.
 - Call `ui.renderSettingsView(mockUser, 'granted')`.
 - Confirm profile name, email, and avatar render safely.
 - Confirm notification status copy renders for `granted`, `denied`,
   `default`, `unsupported`, and `unknown`.
+- Confirm denied notification status uses the exact AGENTS.md message and no
+  settings copy promises an unavailable enable action.
 - Confirm theme section shows Light and Coming soon.
 - Confirm account section includes a sign-out action hook.
 - Call `ui.showConfirmModal('Sign out of Taskly?', () => {})` and confirm the

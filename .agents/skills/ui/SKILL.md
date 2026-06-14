@@ -496,13 +496,15 @@ function isToday(timestamp) {
 
 ---
 
-## 3. SIDEBAR — renderSidebar / renderProjectList
+## 3. SIDEBAR — renderSidebar / renderSidebarUser / renderProjectList
 
-These two are closely related. `renderSidebar` is the entry
+These functions are closely related. `renderSidebar` is the entry
 point called by app.js. `renderProjectList` renders just the
 project list portion — kept separate so app.js can refresh
 only the project list when projects change without re-rendering
-the whole sidebar (nav links, user profile).
+the whole sidebar (nav links, user profile). `renderSidebarUser`
+updates the sidebar identity fields so app.js does not perform
+user-visible DOM writes for profile data.
 
 ### renderSidebar
 
@@ -517,6 +519,37 @@ the whole sidebar (nav links, user profile).
  */
 function renderSidebar(projects, activeProjectId) {
   renderProjectList(projects, activeProjectId);
+}
+```
+
+### renderSidebarUser
+
+Updates the existing sidebar profile fields. Use safe fallbacks and
+`textContent` for names. Do not read Firebase Auth directly.
+
+```javascript
+/**
+ * Renders signed-in user details in the sidebar identity surface.
+ * @param {Object|null} user - Auth user object
+ * @returns {void}
+ */
+function renderSidebarUser(user) {
+  const photo = document.getElementById('user-photo');
+  const name = document.getElementById('user-name');
+  const displayName = user && user.displayName ? user.displayName : 'Taskly user';
+
+  if (name) {
+    name.textContent = displayName;
+  }
+
+  if (photo) {
+    photo.alt = `${displayName} profile photo`;
+    if (user && user.photoURL) {
+      photo.src = user.photoURL;
+    } else {
+      photo.removeAttribute('src');
+    }
+  }
 }
 ```
 
@@ -1266,6 +1299,51 @@ function buildTaskForm(task) {
 }
 ```
 
+### Modal Validation Helpers
+
+app.js owns form submission and validation decisions. ui.js owns the
+visible inline validation targets.
+
+```javascript
+/**
+ * Shows a task modal validation message.
+ * @param {string} message - Human-readable validation message
+ * @returns {void}
+ */
+function renderTaskModalValidation(message) {
+  renderModalValidation('task-form-error', message);
+}
+
+/**
+ * Clears the task modal validation message.
+ * @returns {void}
+ */
+function clearTaskModalValidation() {
+  clearModalValidation('task-form-error');
+}
+
+/**
+ * Shows a project modal validation message.
+ * @param {string} message - Human-readable validation message
+ * @returns {void}
+ */
+function renderProjectModalValidation(message) {
+  renderModalValidation('project-form-error', message);
+}
+
+/**
+ * Clears the project modal validation message.
+ * @returns {void}
+ */
+function clearProjectModalValidation() {
+  clearModalValidation('project-form-error');
+}
+```
+
+The private `renderModalValidation(id, message)` and
+`clearModalValidation(id)` helpers may create or clear an element inside
+the current modal panel. Validation elements must use `role="alert"`.
+
 ### showConfirmModal
 
 Per AGENTS.md — used for delete task, delete project, sign-out,
@@ -1350,6 +1428,9 @@ Targets `#notif-count` from Session 1's index.html.
 Per AGENTS.md §12: `aria-live="polite"` for count changes —
 already on the element from Session 1.
 
+`#notif-count` is the only canonical notification badge ID. Do not add,
+preserve, or fallback to `#notification-count`; that ID is stale.
+
 ```javascript
 /**
  * Updates the notification bell's unread count badge.
@@ -1380,6 +1461,7 @@ function updateNotificationBadge(count) {
 // At the bottom of ui.js
 window.ui = {
   renderSidebar,
+  renderSidebarUser,
   renderProjectList,
   renderTaskList,
   renderTaskCard,
@@ -1390,6 +1472,11 @@ window.ui = {
   renderErrorBanner,
   renderNotificationPanel,
   renderActivityFeed,
+  renderSettingsView,
+  renderTaskModalValidation,
+  clearTaskModalValidation,
+  renderProjectModalValidation,
+  clearProjectModalValidation,
   showAddTaskModal,
   showEditTaskModal,
   showConfirmModal,
@@ -1402,7 +1489,8 @@ window.ui = {
 
 Private helpers — NOT exported: `createEl`, `clearContainer`,
 `formatDate`, `isOverdue`, `isToday`, `renderTaskSection`,
-`renderEmptyStateElement`, `buildTaskForm`.
+`renderEmptyStateElement`, `buildTaskForm`, `renderModalValidation`,
+`clearModalValidation`.
 
 ---
 
@@ -1447,6 +1535,7 @@ It builds DOM from that data and returns/inserts it. That's all.
 | `renderActivityFeed` receives unknown `activity.type` | Falls back to label `'updated'` rather than showing `undefined` |
 | View-specific container (`#task-list`, `#dashboard-stats`, etc.) not yet in DOM | `getElementById` returns null — function returns early, no crash |
 | `updateNotificationBadge(0)` | Badge hidden, not shown with "0" |
+| `#notification-count` exists in old code | Treat as stale; do not use as a fallback |
 
 ---
 
@@ -1461,7 +1550,11 @@ Then run `.agents/skills/review/SKILL.md` as required by AGENTS.md §16.
 - [ ] Priority always shown as dot + text label — never dot alone
 
 ### Functions implemented
-- [ ] All 18 functions in Section 14's export list implemented
+- [ ] All functions in Section 14's export list implemented
+- [ ] Sidebar user fields are updated only through `renderSidebarUser(user)`
+- [ ] Task/project modal inline validation helpers exist and are exported
+- [ ] `updateNotificationBadge()` targets only `#notif-count` with no
+      `#notification-count` fallback
 - [ ] Private helpers (Section 2, plus renderTaskSection,
       renderEmptyStateElement, buildTaskForm) are NOT in window.ui
 
