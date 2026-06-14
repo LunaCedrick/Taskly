@@ -265,6 +265,7 @@ taskly/
 │   ├── ui.js           ← All DOM rendering, shared components
 │   └── app.js          ← Orchestrator, state, event listeners
 ├── .agents/
+│   ├── ALIGNMENT_FIXES.md ← Active cross-session fix ledger
 │   └── skills/
 │       ├── setup/SKILL.md
 │       ├── auth/SKILL.md
@@ -283,6 +284,7 @@ taskly/
 │       ├── responsive/SKILL.md
 │       ├── accessibility/SKILL.md
 │       ├── performance/SKILL.md
+│       ├── alignment-fix/SKILL.md ← Maintenance skill, not a session
 │       └── SESSION_TEMPLATE.md ← Authoring template only, not a session
 ├── AGENTS.md           ← This file — read every session
 ├── PLAN.md             ← Full architecture plan
@@ -898,10 +900,18 @@ Session 17 : .agents/skills/performance/SKILL.md
              Listener cleanup audit, unused CSS removal,
              no console.logs, PWA manifest prep,
              Vercel deployment final steps
+
+Maintenance: .agents/skills/alignment-fix/SKILL.md
+             Cross-session contract alignment before code fixes.
+             Reads .agents/ALIGNMENT_FIXES.md, patches AGENTS.md
+             and affected skills first, then hands off to the
+             relevant build skill. This is not Session 18.
 ```
 
 ### Skill Usage Rules
 - Always feed AGENTS.md first, then the relevant skill
+- If .agents/ALIGNMENT_FIXES.md has active items, use
+  alignment-fix before rerunning any affected build skill
 - Never feed two build skills in the same session
 - skill-review can be combined with any build skill
 - If Codex generates something not in the skill scope:
