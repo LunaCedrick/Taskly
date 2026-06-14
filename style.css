@@ -1365,3 +1365,22 @@ ol {
     flex-direction: column;
   }
 }
+
+/* OFFLINE SUPPORT - SESSION 11 */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+}
+
+.offline-banner__message {
+  max-width: 100%;
+  color: var(--color-sidebar-active);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
