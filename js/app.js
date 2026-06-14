@@ -197,18 +197,7 @@ function renderAuthenticatedShell() {
  * @returns {void}
  */
 function updateSidebarUser() {
-  const photo = document.getElementById('user-photo');
-  const name = document.getElementById('user-name');
-  const user = state.user || {};
-
-  if (photo) {
-    photo.src = user.photoURL || '';
-    photo.alt = `${user.displayName || 'Taskly user'} profile photo`;
-  }
-
-  if (name) {
-    name.textContent = user.displayName || 'Taskly user';
-  }
+  ui.renderSidebarUser(state.user || {});
 }
 
 /**
@@ -931,7 +920,7 @@ async function handleProjectFormSubmit(form) {
   const name = getProjectFormName(form);
 
   if (!name) {
-    setProjectFormError(form, 'Please enter a project name.');
+    setProjectFormError('Please enter a project name.');
     return;
   }
 
@@ -956,7 +945,7 @@ async function saveProjectForm(form, name) {
 
     ui.hideModal();
   } catch (err) {
-    setProjectFormError(form, normalizeError(err, 'Something went wrong. Please try again.'));
+    setProjectFormError(normalizeError(err, 'Something went wrong. Please try again.'));
   }
 }
 
@@ -969,7 +958,7 @@ async function handleTaskFormSubmit(form) {
   const taskData = buildTaskDataFromForm(form);
 
   if (!taskData.title) {
-    setTaskFormError(form, 'Please enter a task title.');
+    setTaskFormError('Please enter a task title.');
     return;
   }
 
@@ -996,7 +985,7 @@ async function saveTaskForm(form, taskData) {
     currentEditingTaskId = null;
     ui.hideModal();
   } catch (err) {
-    setTaskFormError(form, normalizeError(err, 'Something went wrong. Please try again.'));
+    setTaskFormError(normalizeError(err, 'Something went wrong. Please try again.'));
   }
 }
 
@@ -1235,30 +1224,20 @@ function getEditingTask(form) {
 
 /**
  * Sets a task form validation message.
- * @param {HTMLFormElement} form - Task form.
  * @param {string} message - Validation message.
  * @returns {void}
  */
-function setTaskFormError(form, message) {
-  const error = form.querySelector('[data-task-error="title"]');
-
-  if (error) {
-    error.textContent = message;
-  }
+function setTaskFormError(message) {
+  ui.renderTaskModalValidation(message);
 }
 
 /**
  * Sets a project form validation message.
- * @param {HTMLFormElement} form - Project form.
  * @param {string} message - Validation message.
  * @returns {void}
  */
-function setProjectFormError(form, message) {
-  const error = form.querySelector('[data-project-error="name"]');
-
-  if (error) {
-    error.textContent = message;
-  }
+function setProjectFormError(message) {
+  ui.renderProjectModalValidation(message);
 }
 
 /**

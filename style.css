@@ -312,7 +312,7 @@ ol {
   color: var(--color-text-primary);
 }
 
-.notification-count {
+.notification-bell__count {
   position: absolute;
   top: 0;
   right: 0;

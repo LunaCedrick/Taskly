@@ -108,6 +108,45 @@ function renderSidebar(projects, activeProjectId) {
 }
 
 /**
+ * Renders signed-in user details in the sidebar profile area.
+ * @param {Object|null} user - Authenticated user profile data.
+ * @returns {void}
+ */
+function renderSidebarUser(user) {
+  const photo = document.getElementById('user-photo');
+  const name = document.getElementById('user-name');
+  const displayName = user && user.displayName ? user.displayName : 'Taskly user';
+
+  if (name) {
+    name.textContent = displayName;
+  }
+
+  renderSidebarUserPhoto(photo, user, displayName);
+}
+
+/**
+ * Renders the sidebar profile image or safe fallback state.
+ * @param {HTMLImageElement|null} photo - Sidebar user photo element.
+ * @param {Object|null} user - Authenticated user profile data.
+ * @param {string} displayName - Safe display name.
+ * @returns {void}
+ */
+function renderSidebarUserPhoto(photo, user, displayName) {
+  if (!photo) {
+    return;
+  }
+
+  photo.alt = `${displayName} profile photo`;
+
+  if (user && user.photoURL) {
+    photo.src = user.photoURL;
+    return;
+  }
+
+  photo.removeAttribute('src');
+}
+
+/**
  * Renders sidebar projects with progress bars.
  * @param {Array} projects - Project objects to render.
  * @param {string|null} activeProjectId - Currently active project ID.
@@ -1334,7 +1373,7 @@ function buildNotificationSettingsAction(config) {
  * @returns {string} Button label.
  */
 function getNotificationActionLabel(status) {
-  return status === 'default' || status === 'unknown' ? 'Enable notifications' : 'Managed in browser';
+  return status === 'default' || status === 'unknown' ? 'Notification status' : 'Managed in browser';
 }
 
 /**
@@ -1588,6 +1627,23 @@ function appendProjectNameField(form, value) {
 }
 
 /**
+ * Shows a project modal validation message.
+ * @param {string} message - Human-readable validation message.
+ * @returns {void}
+ */
+function renderProjectModalValidation(message) {
+  setModalValidationMessage('[data-project-error="name"]', message);
+}
+
+/**
+ * Clears the project modal validation message.
+ * @returns {void}
+ */
+function clearProjectModalValidation() {
+  setModalValidationMessage('[data-project-error="name"]', '');
+}
+
+/**
  * Appends project form validation message space.
  * @param {HTMLFormElement} form - Project form.
  * @returns {void}
@@ -1726,6 +1782,37 @@ function appendTaskTitleError(form) {
   error.dataset.taskError = 'title';
   error.setAttribute('role', 'alert');
   form.appendChild(error);
+}
+
+/**
+ * Shows a task modal validation message.
+ * @param {string} message - Human-readable validation message.
+ * @returns {void}
+ */
+function renderTaskModalValidation(message) {
+  setModalValidationMessage('[data-task-error="title"]', message);
+}
+
+/**
+ * Clears the task modal validation message.
+ * @returns {void}
+ */
+function clearTaskModalValidation() {
+  setModalValidationMessage('[data-task-error="title"]', '');
+}
+
+/**
+ * Sets inline modal validation text for an existing validation target.
+ * @param {string} selector - Validation target selector.
+ * @param {string} message - Message to render, or empty string to clear.
+ * @returns {void}
+ */
+function setModalValidationMessage(selector, message) {
+  const target = document.querySelector(selector);
+
+  if (target) {
+    target.textContent = message || '';
+  }
 }
 
 /**
@@ -1944,8 +2031,7 @@ function hideOfflineBanner() {
  * @returns {void}
  */
 function updateNotificationBadge(count) {
-  const badge = document.getElementById('notification-count') ||
-    document.getElementById('notif-count');
+  const badge = document.getElementById('notif-count');
 
   if (!badge) {
     return;
@@ -1961,6 +2047,7 @@ function updateNotificationBadge(count) {
  */
 window.ui = {
   renderSidebar,
+  renderSidebarUser,
   renderProjectList,
   renderProjectView,
   renderTaskList,
@@ -1976,6 +2063,10 @@ window.ui = {
   renderNotificationPanel,
   renderSettingsView,
   renderActivityFeed,
+  renderTaskModalValidation,
+  clearTaskModalValidation,
+  renderProjectModalValidation,
+  clearProjectModalValidation,
   showAddProjectModal,
   showEditProjectModal,
   showAddTaskModal,

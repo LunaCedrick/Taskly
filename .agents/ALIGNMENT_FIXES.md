@@ -9,7 +9,7 @@ Use `.agents/skills/alignment-fix/SKILL.md` before editing this file.
 
 ### Settings Navigation Trigger
 
-Status: code-fixed
+Status: closed
 
 Problem: `app.js` supports `data-view="settings"` and `#view-settings`
 exists, but there is no visible settings navigation trigger in `index.html`.
@@ -33,8 +33,8 @@ Code Fix:
 - Rerun the updated settings skill or a focused settings fix to add the
   settings nav trigger.
 - Confirm the updated app skill already handles routing.
-- Read-only scan: no `data-view="settings"` trigger currently exists in
-  `index.html` or `js/`.
+- Code fixed in `index.html`: the sidebar now includes a visible
+  `data-view="settings"` navigation trigger.
 
 Review:
 
@@ -42,7 +42,7 @@ Review:
 
 ### App DOM Write Boundary
 
-Status: ready-for-code-fix
+Status: closed
 
 Problem: `app.js` performs narrow DOM writes for sidebar user fields and
 inline modal validation because no exported `ui.js` helpers exist for those
@@ -67,8 +67,8 @@ Code Fix:
 - Rerun the updated UI skill or a focused UI fix to add helpers.
 - Rerun the updated app skill or a focused app fix to replace direct DOM
   writes with those helpers.
-- Read-only scan: `js/app.js` still writes sidebar user fields and modal
-  validation directly.
+- Code fixed in `js/ui.js` and `js/app.js`: sidebar user and modal validation
+  writes now delegate through exported UI helpers.
 
 Review:
 
@@ -77,7 +77,7 @@ Review:
 
 ### Notification Badge Canonical ID
 
-Status: ready-for-code-fix
+Status: closed
 
 Problem: `ui.updateNotificationBadge()` still contains a legacy fallback
 lookup for `#notification-count`, while `#notif-count` is canonical.
@@ -99,7 +99,8 @@ Code Fix:
 
 - Rerun the updated UI skill or a focused UI fix to remove the fallback
   from `ui.updateNotificationBadge()`.
-- Read-only scan: `js/ui.js` still references `#notification-count`.
+- Code fixed in `js/ui.js`: `ui.updateNotificationBadge()` now targets only
+  `#notif-count`.
 
 Review:
 
@@ -107,7 +108,7 @@ Review:
 
 ### Notification Settings Action
 
-Status: ready-for-code-fix
+Status: closed
 
 Problem: Settings wording says notification toggle, but the auth module does
 not export a permission-request helper after first login. Current behavior can
@@ -131,12 +132,8 @@ Contract update:
 
 Code Fix:
 
-- Rerun the updated settings skill or a focused settings UI fix to revise
-  notification action copy/status so it does not promise enabling notifications.
-- If enabling from settings is desired later, first update AGENTS and auth/app
-  skills with a public permission-request contract.
-- Read-only scan: `js/ui.js` still renders `Enable notifications` for default
-  or unknown status.
+- Code fixed in `js/ui.js`: notification settings action copy now displays
+  status/help text and does not promise an unavailable enable toggle.
 
 Review:
 
