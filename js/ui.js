@@ -1156,6 +1156,270 @@ function hideNotificationPanel() {
 }
 
 /**
+ * Renders the settings view contract.
+ * @param {Object} user - Authenticated user profile data.
+ * @param {string} notificationStatus - Browser notification permission status.
+ * @returns {void}
+ */
+function renderSettingsView(user, notificationStatus) {
+  const container = document.getElementById('view-settings');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildSettingsHeader());
+  container.appendChild(buildSettingsGrid(user || {}, notificationStatus || 'unknown'));
+}
+
+/**
+ * Builds the settings view header.
+ * @returns {HTMLElement} Settings header.
+ */
+function buildSettingsHeader() {
+  const header = createEl('header', 'settings__header');
+
+  header.appendChild(createEl('p', 'settings__eyebrow', 'Workspace preferences'));
+  header.appendChild(createEl('h2', 'settings__title', 'Settings'));
+  header.appendChild(createEl('p', 'settings__subtitle', 'Manage account details and app preferences.'));
+
+  return header;
+}
+
+/**
+ * Builds the settings section grid.
+ * @param {Object} user - Authenticated user profile data.
+ * @param {string} notificationStatus - Browser notification permission status.
+ * @returns {HTMLElement} Settings grid.
+ */
+function buildSettingsGrid(user, notificationStatus) {
+  const grid = createEl('div', 'settings-grid');
+
+  grid.appendChild(buildProfileSettingsSection(user));
+  grid.appendChild(buildNotificationSettingsSection(notificationStatus));
+  grid.appendChild(buildThemeSettingsSection());
+  grid.appendChild(buildAccountSettingsSection());
+
+  return grid;
+}
+
+/**
+ * Builds the settings profile section.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Profile settings section.
+ */
+function buildProfileSettingsSection(user) {
+  const section = buildSettingsCard('settings-profile', 'Profile', 'Google account used for Taskly.');
+  const profile = createEl('div', 'settings-profile');
+
+  profile.appendChild(buildSettingsAvatar(user));
+  profile.appendChild(buildSettingsProfileText(user));
+  section.appendChild(profile);
+
+  return section;
+}
+
+/**
+ * Builds the settings avatar element.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Avatar image or fallback.
+ */
+function buildSettingsAvatar(user) {
+  if (user.photoURL) {
+    return buildSettingsAvatarImage(user);
+  }
+
+  return createEl('div', 'settings-profile__avatar settings-profile__avatar--fallback', getInitials(user.displayName));
+}
+
+/**
+ * Builds a profile avatar image.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLImageElement} Profile image.
+ */
+function buildSettingsAvatarImage(user) {
+  const image = createEl('img', 'settings-profile__avatar');
+
+  image.src = user.photoURL;
+  image.alt = `${user.displayName || 'Taskly user'} profile photo`;
+
+  return image;
+}
+
+/**
+ * Gets initials for the profile fallback avatar.
+ * @param {string} name - User display name.
+ * @returns {string} Initials text.
+ */
+function getInitials(name) {
+  const safeName = name || 'Taskly user';
+  return safeName.trim().charAt(0).toUpperCase() || 'T';
+}
+
+/**
+ * Builds profile name and email text.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Profile text wrapper.
+ */
+function buildSettingsProfileText(user) {
+  const text = createEl('div', 'settings-profile__text');
+
+  text.appendChild(createEl('p', 'settings-profile__name', user.displayName || 'Taskly user'));
+  text.appendChild(createEl('p', 'settings-profile__email', user.email || 'No email available'));
+
+  return text;
+}
+
+/**
+ * Builds the notification settings section.
+ * @param {string} status - Browser notification permission status.
+ * @returns {HTMLElement} Notification settings section.
+ */
+function buildNotificationSettingsSection(status) {
+  const config = getNotificationStatusConfig(status);
+  const section = buildSettingsCard('settings-notifications', 'Notifications', config.message);
+
+  section.appendChild(buildSettingsStatus(config));
+  section.appendChild(buildNotificationSettingsAction(config));
+
+  return section;
+}
+
+/**
+ * Gets notification status presentation details.
+ * @param {string} status - Browser notification permission status.
+ * @returns {Object} Notification status configuration.
+ */
+function getNotificationStatusConfig(status) {
+  const configs = {
+    granted: { status: 'granted', label: 'Enabled', message: 'Browser notifications are enabled.', disabled: true },
+    denied: { status: 'denied', label: 'Disabled', message: 'Notifications are disabled in browser settings.', disabled: true },
+    default: { status: 'default', label: 'Not enabled', message: 'Notifications are not enabled yet.', disabled: false },
+    unsupported: { status: 'unsupported', label: 'Unsupported', message: 'Browser notifications are not supported.', disabled: true },
+    unknown: { status: 'unknown', label: 'Unknown', message: 'Notification status could not be determined.', disabled: false },
+  };
+
+  return configs[status] || configs.unknown;
+}
+
+/**
+ * Builds a settings status pill.
+ * @param {Object} config - Status presentation configuration.
+ * @returns {HTMLElement} Status pill.
+ */
+function buildSettingsStatus(config) {
+  return createEl('p', `settings-status settings-status--${config.status}`, config.label);
+}
+
+/**
+ * Builds the notification settings action control.
+ * @param {Object} config - Notification status configuration.
+ * @returns {HTMLButtonElement} Notification action button.
+ */
+function buildNotificationSettingsAction(config) {
+  const button = createEl('button', 'settings-action', getNotificationActionLabel(config.status));
+
+  button.type = 'button';
+  button.disabled = config.disabled;
+  button.dataset.settingsAction = 'notifications';
+  button.setAttribute('aria-label', 'Manage browser notifications');
+
+  return button;
+}
+
+/**
+ * Gets notification action button copy.
+ * @param {string} status - Notification status value.
+ * @returns {string} Button label.
+ */
+function getNotificationActionLabel(status) {
+  return status === 'default' || status === 'unknown' ? 'Enable notifications' : 'Managed in browser';
+}
+
+/**
+ * Builds the theme placeholder section.
+ * @returns {HTMLElement} Theme settings section.
+ */
+function buildThemeSettingsSection() {
+  const section = buildSettingsCard('settings-theme', 'Theme', 'Current theme: Light.');
+
+  section.appendChild(createEl('p', 'settings-status settings-status--default', 'Light'));
+  section.appendChild(buildThemePlaceholderButton());
+
+  return section;
+}
+
+/**
+ * Builds the disabled theme placeholder control.
+ * @returns {HTMLButtonElement} Theme placeholder button.
+ */
+function buildThemePlaceholderButton() {
+  const button = createEl('button', 'settings-action', 'Dark mode - Coming soon');
+
+  button.type = 'button';
+  button.disabled = true;
+  button.dataset.settingsAction = 'theme';
+  button.setAttribute('aria-label', 'Dark mode coming soon');
+
+  return button;
+}
+
+/**
+ * Builds the account settings section.
+ * @returns {HTMLElement} Account settings section.
+ */
+function buildAccountSettingsSection() {
+  const section = buildSettingsCard('settings-account', 'Account', 'Sign out after pending offline changes sync.');
+
+  section.appendChild(buildSettingsSignOutButton());
+
+  return section;
+}
+
+/**
+ * Builds the settings sign-out button.
+ * @returns {HTMLButtonElement} Sign-out button.
+ */
+function buildSettingsSignOutButton() {
+  const button = createEl('button', 'settings-action settings-action--danger', 'Sign out');
+
+  button.type = 'button';
+  button.dataset.settingsAction = 'sign-out';
+  button.setAttribute('aria-label', 'Sign out of Taskly');
+
+  return button;
+}
+
+/**
+ * Shows the sign-out confirmation modal.
+ * @param {Function} onConfirm - Callback for app.js to invoke after confirmation.
+ * @returns {void}
+ */
+function showSignOutConfirmModal(onConfirm) {
+  showConfirmModal('Sign out of Taskly? Unsaved offline changes may still be syncing.', onConfirm);
+}
+
+/**
+ * Builds a reusable settings card shell.
+ * @param {string} id - Section element ID.
+ * @param {string} titleText - Section title.
+ * @param {string} descriptionText - Section description.
+ * @returns {HTMLElement} Settings card section.
+ */
+function buildSettingsCard(id, titleText, descriptionText) {
+  const section = createEl('section', 'settings-card');
+  const header = createEl('div', 'settings-card__header');
+
+  section.id = id;
+  header.appendChild(createEl('h3', 'settings-card__title', titleText));
+  header.appendChild(createEl('p', 'settings-card__description', descriptionText));
+  section.appendChild(header);
+
+  return section;
+}
+
+/**
  * Renders the recent activity feed.
  * @param {Array} activities - Activity objects in display order.
  * @returns {void}
@@ -1710,12 +1974,14 @@ window.ui = {
   renderErrorBanner,
   renderNotificationAlerts,
   renderNotificationPanel,
+  renderSettingsView,
   renderActivityFeed,
   showAddProjectModal,
   showEditProjectModal,
   showAddTaskModal,
   showEditTaskModal,
   showConfirmModal,
+  showSignOutConfirmModal,
   hideModal,
   showNotificationPanel,
   hideNotificationPanel,
