@@ -15,6 +15,10 @@ body {
   height: 100%;
 }
 
+[hidden] {
+  display: none;
+}
+
 body {
   font-family: 'DM Sans', sans-serif;
   font-size: 13px;
@@ -133,6 +137,11 @@ ol {
   display: flex;
   height: 100vh;
   overflow: hidden;
+}
+
+#view-login[hidden],
+#view-app[hidden] {
+  display: none;
 }
 
 .sidebar {

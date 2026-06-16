@@ -913,6 +913,22 @@ function renderErrorBanner(message) {
 }
 
 /**
+ * Renders a login-specific error message in the login card.
+ * @param {string} message - Human-readable sign-in error message.
+ * @returns {void}
+ */
+function renderLoginError(message) {
+  const error = document.getElementById('login-error');
+
+  if (!error) {
+    return;
+  }
+
+  error.textContent = message || '';
+  error.hidden = !message;
+}
+
+/**
  * Builds an error banner element.
  * @param {string} message - Human-readable error message.
  * @returns {HTMLElement} Error banner element.
@@ -2059,6 +2075,7 @@ window.ui = {
   renderSkeletonCards,
   renderEmptyState,
   renderErrorBanner,
+  renderLoginError,
   renderNotificationAlerts,
   renderNotificationPanel,
   renderSettingsView,

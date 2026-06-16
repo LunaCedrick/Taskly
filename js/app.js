@@ -1524,10 +1524,16 @@ function handleOnline() {
  * @returns {Promise<void>}
  */
 async function handleGoogleSignIn() {
+  ui.renderLoginError('');
+
   try {
     await auth.signInWithGoogle();
   } catch (err) {
-    ui.renderErrorBanner(normalizeError(err, 'Sign-in failed. Please try again.'));
+    const message = typeof err === 'string' ? err : 'Sign-in failed. Please try again.';
+
+    if (message) {
+      ui.renderLoginError(message);
+    }
   }
 }
 
@@ -1616,6 +1622,7 @@ function getTodayStart() {
  * @returns {void}
  */
 function boot() {
+  bindDomEventsOnce();
   auth.initAuthListener(init, handleAuthSignedOut);
   router.initRouter();
 }
