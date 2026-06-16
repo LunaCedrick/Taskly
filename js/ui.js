@@ -108,6 +108,62 @@ function renderSidebar(projects, activeProjectId) {
 }
 
 /**
+ * Updates active primary and project navigation styles.
+ * @param {string} activeView - Active app view.
+ * @param {string|null} activeProjectId - Active project ID.
+ * @returns {void}
+ */
+function updateNavigationState(activeView, activeProjectId) {
+  updatePrimaryNavigationState(activeView);
+  updateProjectNavigationState(activeView, activeProjectId);
+}
+
+/**
+ * Updates active state for primary sidebar links.
+ * @param {string} activeView - Active app view.
+ * @returns {void}
+ */
+function updatePrimaryNavigationState(activeView) {
+  document.querySelectorAll('.sidebar-nav .nav-item[data-view]').forEach((item) => {
+    const isTasksView = activeView === 'tasks' || activeView === 'project';
+    const isActive = item.dataset.view === activeView || (item.dataset.view === 'tasks' && isTasksView);
+
+    setNavigationItemState(item, isActive);
+  });
+}
+
+/**
+ * Updates active state for project sidebar links.
+ * @param {string} activeView - Active app view.
+ * @param {string|null} activeProjectId - Active project ID.
+ * @returns {void}
+ */
+function updateProjectNavigationState(activeView, activeProjectId) {
+  const canHighlightProject = activeView === 'tasks' || activeView === 'project';
+
+  document.querySelectorAll('#sidebar-project-list .project-item[data-project-id]').forEach((item) => {
+    setNavigationItemState(item, canHighlightProject && item.dataset.projectId === activeProjectId);
+  });
+}
+
+/**
+ * Applies or clears active navigation semantics.
+ * @param {HTMLElement} item - Navigation item.
+ * @param {boolean} isActive - Whether item is active.
+ * @returns {void}
+ */
+function setNavigationItemState(item, isActive) {
+  item.classList.toggle('nav-item--active', isActive);
+
+  if (isActive) {
+    item.setAttribute('aria-current', 'page');
+    return;
+  }
+
+  item.removeAttribute('aria-current');
+}
+
+/**
  * Renders signed-in user details in the sidebar profile area.
  * @param {Object|null} user - Authenticated user profile data.
  * @returns {void}
@@ -1961,8 +2017,6 @@ function getCategoryOptions(selectedValue) {
     categoryOptions.push({ value: selectedValue, label: selectedValue });
   }
 
-  categoryOptions.push({ value: 'custom', label: 'Custom…' });
-
   return categoryOptions;
 }
 
@@ -2063,6 +2117,7 @@ function updateNotificationBadge(count) {
  */
 window.ui = {
   renderSidebar,
+  updateNavigationState,
   renderSidebarUser,
   renderProjectList,
   renderProjectView,

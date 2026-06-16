@@ -101,3 +101,88 @@ After implementation, rerun browser QA and verify:
 - Sign-in, sign-out, and re-sign-in do not create duplicate listeners.
 - Static review still reports no FAIL items.
 
+## Patch 4 - Remove Unusable Custom Category Option
+
+Affected files:
+
+- `js/ui.js`
+- `style.css`
+
+Problem:
+
+The task modal offered a `Custom...` category option, but there was no input flow for a custom category. Choosing it saved the literal value `custom`.
+
+Fix:
+
+Remove the `custom` select option for MVP and remove the unused custom category CSS selector.
+
+Expected behavior:
+
+New task category selection is limited to supported visible categories unless a previously saved non-standard category is being edited.
+
+## Patch 5 - Stabilize Sidebar Navigation State
+
+Affected files:
+
+- `js/app.js`
+- `js/ui.js`
+
+Problem:
+
+Project links were handled both as generic `data-view="project"` navigation and as project switches. This caused inconsistent view switching and active tab highlights.
+
+Fix:
+
+Add a `ui.updateNavigationState(activeView, activeProjectId)` helper and have `app.js` call it whenever the active view or project changes. Project links are now excluded from generic view navigation and handled only by the project switch path.
+
+Expected behavior:
+
+Dashboard, My Tasks, Settings, and active project highlights stay aligned with the visible view.
+
+## Patch 6 - Switch To New Project After Creation
+
+Affected file: `js/app.js`
+
+Problem:
+
+Creating a project updated the sidebar but did not reliably move the user into the newly created project, making project navigation feel inconsistent.
+
+Fix:
+
+Track the newly created project ID and switch to it once the realtime projects snapshot includes it.
+
+Expected behavior:
+
+After creating a project, Taskly opens that project and highlights it in the sidebar.
+
+## Patch 7 - Make Global Search Route To Tasks
+
+Affected file: `js/app.js`
+
+Problem:
+
+The search input was visible globally but only rendered filtered results in the task/project view.
+
+Fix:
+
+When search is used from Dashboard or Settings, route into the task area before rendering filtered task results.
+
+Expected behavior:
+
+Typing in search from another view moves the user into My Tasks or the current project task list.
+
+## Patch 8 - Close Sign-Out Confirmation Modal
+
+Affected file: `js/app.js`
+
+Problem:
+
+After confirming sign-out, the confirmation modal stayed open while the login view was shown.
+
+Fix:
+
+Hide the modal after sign-out completes and also during auth sign-out cleanup.
+
+Expected behavior:
+
+The sign-out confirmation modal disappears when the user is signed out.

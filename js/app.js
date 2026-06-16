@@ -16,6 +16,7 @@ let activeTaskUnsubscribe = null;
 let dashboardUnsubscribe = null;
 let searchDebounceId = null;
 let currentEditingTaskId = null;
+let pendingProjectSwitchId = null;
 let dashboardTasks = [];
 const notifiedTaskKeys = new Set();
 
@@ -25,6 +26,7 @@ const notifiedTaskKeys = new Set();
  */
 const state = {
   user: null,
+  currentView: 'dashboard',
   currentProjectId: null,
   projects: [],
   tasks: [],
@@ -76,6 +78,7 @@ function init(user) {
  */
 function resetSessionState(user) {
   state.user = user;
+  state.currentView = 'dashboard';
   state.currentProjectId = null;
   state.projects = [];
   state.tasks = [];
@@ -86,6 +89,7 @@ function resetSessionState(user) {
   state.unreadCount = 0;
   dashboardTasks = [];
   currentEditingTaskId = null;
+  pendingProjectSwitchId = null;
   notifiedTaskKeys.clear();
 }
 
@@ -186,8 +190,10 @@ function bindNetworkEvents() {
  */
 function renderAuthenticatedShell() {
   router.showView('dashboard');
+  setActiveNavigation('dashboard');
   updateSidebarUser();
   ui.renderSidebar(enrichProjects(state.projects), state.currentProjectId);
+  setActiveNavigation('dashboard');
   ui.renderNotificationPanel(state.notifications);
   ui.updateNotificationBadge(state.unreadCount);
 }
@@ -238,6 +244,16 @@ function handleProjectsSnapshot(projects, error) {
 
   state.projects = projects || [];
   ui.renderSidebar(enrichProjects(state.projects), state.currentProjectId);
+  setActiveNavigation(state.currentView);
+
+  if (pendingProjectSwitchId && findProject(pendingProjectSwitchId)) {
+    const projectId = pendingProjectSwitchId;
+
+    pendingProjectSwitchId = null;
+    handleProjectSwitch(projectId);
+    return;
+  }
+
   reconcileActiveProject();
 }
 
@@ -271,6 +287,7 @@ function handleDashboardSnapshot(tasks, error) {
   dashboardTasks = tasks || [];
   state.dashboardData = buildDashboardData(dashboardTasks);
   ui.renderSidebar(enrichProjects(state.projects), state.currentProjectId);
+  setActiveNavigation(state.currentView);
   renderDashboard();
   syncNotifications(dashboardTasks);
 }
@@ -331,6 +348,16 @@ function renderDashboard() {
 }
 
 /**
+ * Updates the active app navigation state.
+ * @param {string} view - Active app view.
+ * @returns {void}
+ */
+function setActiveNavigation(view) {
+  state.currentView = view || 'dashboard';
+  ui.updateNavigationState(state.currentView, state.currentProjectId);
+}
+
+/**
  * Keeps project selection valid after project updates.
  * @returns {void}
  */
@@ -360,6 +387,7 @@ function clearProjectSelection() {
   router.showView('dashboard');
   router.setTopbarTitle('Dashboard');
   ui.renderSidebar(enrichProjects(state.projects), null);
+  setActiveNavigation('dashboard');
 }
 
 /**
@@ -378,11 +406,13 @@ function handleProjectSwitch(projectId) {
   state.currentProjectId = projectId;
   state.tasks = [];
   router.showView('project');
+  setActiveNavigation('project');
   router.setTopbarTitle(project.name || 'Project');
   ui.renderProjectView(enrichProject(project));
   ui.renderTaskFilters(state.filters, getTaskCategories([]));
   ui.renderTaskList([], state.filters, state.searchQuery);
   ui.renderSidebar(enrichProjects(state.projects), projectId);
+  setActiveNavigation('project');
   startProjectTaskListener(projectId);
 }
 
@@ -434,8 +464,21 @@ function handleSearch(query) {
   clearTimeout(searchDebounceId);
   searchDebounceId = setTimeout(() => {
     state.searchQuery = String(query || '').trim();
+    ensureTaskSearchView();
     renderProjectTasks();
   }, getSearchDebounceMs());
+}
+
+/**
+ * Moves global search into the task area when needed.
+ * @returns {void}
+ */
+function ensureTaskSearchView() {
+  if (state.currentView === 'project' || state.currentView === 'tasks') {
+    return;
+  }
+
+  navigateToTasksView();
 }
 
 /**
@@ -537,7 +580,9 @@ async function handleSignOut() {
 
   try {
     await auth.signOut();
+    ui.hideModal();
   } catch (err) {
+    ui.hideModal();
     ui.renderErrorBanner(normalizeError(err, 'Sign-out failed. Please try again.'));
   }
 }
@@ -548,6 +593,7 @@ async function handleSignOut() {
  */
 function resetSignedOutState() {
   state.user = null;
+  state.currentView = 'dashboard';
   state.currentProjectId = null;
   state.projects = [];
   state.tasks = [];
@@ -559,6 +605,7 @@ function resetSignedOutState() {
   dashboardUnsubscribe = null;
   dashboardTasks = [];
   currentEditingTaskId = null;
+  pendingProjectSwitchId = null;
 }
 
 /**
@@ -647,7 +694,7 @@ function routeClickTarget(event, target) {
 function handleNavigationClick(event, target) {
   const view = target.dataset.view;
 
-  if (!view) {
+  if (!view || (view === 'project' && target.dataset.projectId)) {
     return;
   }
 
@@ -671,6 +718,8 @@ function navigateToView(view) {
   }
 
   router.showView(view);
+  router.setTopbarTitle(view === 'settings' ? 'Settings' : 'Dashboard');
+  setActiveNavigation(view);
 }
 
 /**
@@ -684,6 +733,8 @@ function navigateToTasksView() {
   }
 
   router.showView('project');
+  router.setTopbarTitle('My Tasks');
+  setActiveNavigation('tasks');
   ui.renderProjectView(null);
   ui.renderTaskFilters(state.filters, []);
   ui.renderEmptyState('no-projects');
@@ -944,6 +995,7 @@ async function saveProjectForm(form, name) {
       await writeActivitySafely({ type: 'project_updated', projectId: form.dataset.projectId, projectName: name });
     } else {
       const projectId = await db.createProject(state.user.uid, name);
+      pendingProjectSwitchId = projectId;
       await writeActivitySafely({ type: 'project_created', projectId, projectName: name });
     }
 
@@ -1544,6 +1596,7 @@ async function handleGoogleSignIn() {
 function handleAuthSignedOut() {
   detachFirestoreListeners();
   resetSignedOutState();
+  ui.hideModal();
   router.showView('login');
 }
 

@@ -1151,10 +1151,6 @@ ol {
   font-size: 12px;
 }
 
-.task-form__custom-category {
-  display: none;
-}
-
 /* SEARCH AND FILTER CONTROLS - SESSION 9 */
 .task-filter-bar {
   display: flex;
