@@ -51,6 +51,34 @@ function formatDate(timestamp) {
 }
 
 /**
+ * Formats a task due date with optional due time.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Due date display text.
+ */
+function formatDueDate(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  if (date.getHours() === 0 && date.getMinutes() === 0) {
+    return formatDate(date);
+  }
+
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
  * Formats a Firestore Timestamp or date-like value for date inputs.
  * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
  * @returns {string} Date input value in yyyy-mm-dd format.
@@ -61,7 +89,39 @@ function formatInputDate(timestamp) {
   }
 
   const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-  return Number.isNaN(date.getTime()) ? '' : date.toISOString().slice(0, 10);
+  return Number.isNaN(date.getTime()) ? '' : formatDateInputValue(date);
+}
+
+/**
+ * Formats a date value for date input without UTC offset drift.
+ * @param {Date} date - Date object.
+ * @returns {string} Date input value.
+ */
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Formats a Firestore Timestamp or date-like value for time inputs.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Time input value in HH:mm format.
+ */
+function formatInputTime(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  if (Number.isNaN(date.getTime()) || (date.getHours() === 0 && date.getMinutes() === 0)) {
+    return '';
+  }
+
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 }
 
 /**
@@ -601,7 +661,7 @@ function renderTaskCard(task) {
   }
 
   applyTaskCardState(card, task);
-  card.appendChild(buildTaskCheckbox(task));
+  card.appendChild(buildTaskStatusControl(task));
   card.appendChild(buildTaskBody(task));
   card.appendChild(buildTaskActions(task));
 
@@ -628,25 +688,24 @@ function applyTaskCardState(card, task) {
 }
 
 /**
- * Builds a task completion checkbox.
+ * Builds a task completion action control.
  * @param {Object} task - Task object.
- * @returns {HTMLInputElement} Checkbox element.
+ * @returns {HTMLButtonElement} Status action button.
  */
-function buildTaskCheckbox(task) {
-  const checkbox = createEl('input');
+function buildTaskStatusControl(task) {
+  const isDone = task.status === STATUS_DONE;
+  const button = createEl('button', `task-card__finish ${isDone ? 'task-card__finish--done' : ''}`, isDone ? 'Reopen' : 'Finish Task');
 
-  checkbox.type = 'checkbox';
-  checkbox.className = 'task-card__checkbox';
-  checkbox.checked = task.status === STATUS_DONE;
-  checkbox.dataset.taskAction = 'toggle-status';
-  checkbox.dataset.taskId = task.id;
-  checkbox.setAttribute('aria-label', `Mark ${task.title} complete`);
+  button.type = 'button';
+  button.dataset.taskAction = isDone ? 'reopen' : 'finish';
+  button.dataset.taskId = task.id;
+  button.setAttribute('aria-label', isDone ? `Reopen ${task.title}` : `Finish ${task.title}`);
 
   if (task.projectId) {
-    checkbox.dataset.projectId = task.projectId;
+    button.dataset.projectId = task.projectId;
   }
 
-  return checkbox;
+  return button;
 }
 
 /**
@@ -684,7 +743,7 @@ function buildTaskMeta(task) {
   }
 
   if (task.dueDate) {
-    meta.appendChild(createEl('span', 'task-card__due-date', formatDate(task.dueDate)));
+    meta.appendChild(createEl('span', 'task-card__due-date', formatDueDate(task.dueDate)));
   }
 
   return meta;
@@ -769,7 +828,7 @@ function renderDashboard(data) {
   renderStats(data.stats);
   renderTaskSection('dashboard-overdue', data.overdue, 'no-overdue');
   renderTaskSection('dashboard-today', data.today, 'no-tasks-today');
-  renderTaskSection('dashboard-upcoming', data.upcoming, 'no-tasks');
+  renderTaskSection('dashboard-upcoming', data.upcoming, 'no-upcoming');
   renderActivityFeed(data.activity);
 }
 
@@ -916,6 +975,7 @@ function getEmptyStateConfig(type) {
     'no-tasks': { text: 'No tasks yet. Create your first task', action: 'Add Task' },
     'no-overdue': { text: 'Great job! You have no overdue tasks', action: null },
     'no-tasks-today': { text: 'Nothing due today. Enjoy your day', action: null },
+    'no-upcoming': { text: 'No upcoming tasks scheduled', action: null },
     'no-search-results': { text: 'No tasks match your search', action: null },
   };
 
@@ -1835,6 +1895,7 @@ function buildTaskForm(task) {
   appendTaskTitleError(form);
   appendTextareaField(form, task.description || '');
   appendDateField(form, task.dueDate || null);
+  appendTimeField(form, task.dueDate || null);
   appendSelectField(form, 'Priority', 'task-form-priority', 'priority', getPriorityOptions(), task.priority || DEFAULT_PRIORITY);
   appendSelectField(form, 'Category', 'task-form-category', 'category', getCategoryOptions(task.category || ''), task.category || '');
   appendSelectField(form, 'Status', 'task-form-status', 'status', getStatusOptions(), task.status || STATUS_TODO);
@@ -1941,6 +2002,23 @@ function appendDateField(form, value) {
   input.value = formatInputDate(value);
 
   appendLabeledControl(form, 'Due Date', input.id, input);
+}
+
+/**
+ * Appends a due time input field.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {Object|null} value - Existing due date.
+ * @returns {void}
+ */
+function appendTimeField(form, value) {
+  const input = createEl('input');
+
+  input.type = 'time';
+  input.id = 'task-form-due-time';
+  input.name = 'dueTime';
+  input.value = formatInputTime(value);
+
+  appendLabeledControl(form, 'Due Time', input.id, input);
 }
 
 /**

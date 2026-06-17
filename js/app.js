@@ -13,6 +13,7 @@ const SIGN_OUT_MESSAGE = 'Sign out of Taskly? Unsaved offline changes may still 
 
 let hasBoundDomEvents = false;
 let activeTaskUnsubscribe = null;
+let activeTaskProjectId = null;
 let dashboardUnsubscribe = null;
 let searchDebounceId = null;
 let currentEditingTaskId = null;
@@ -158,7 +159,6 @@ function bindClick(id, handler) {
  */
 function bindDelegatedClickEvents() {
   document.addEventListener('click', handleDocumentClick);
-  document.addEventListener('change', handleDocumentChange);
   document.addEventListener('submit', handleDocumentSubmit);
   document.addEventListener('keydown', handleDocumentKeydown);
 }
@@ -397,6 +397,9 @@ function clearProjectSelection() {
  */
 function handleProjectSwitch(projectId) {
   const project = findProject(projectId);
+  const alreadyListening = state.currentProjectId === projectId &&
+    activeTaskProjectId === projectId &&
+    activeTaskUnsubscribe;
 
   if (!project) {
     ui.renderErrorBanner('This project no longer exists.');
@@ -404,15 +407,25 @@ function handleProjectSwitch(projectId) {
   }
 
   state.currentProjectId = projectId;
-  state.tasks = [];
+
+  if (!alreadyListening) {
+    state.tasks = [];
+  }
+
   router.showView('project');
   setActiveNavigation('project');
   router.setTopbarTitle(project.name || 'Project');
   ui.renderProjectView(enrichProject(project));
   ui.renderTaskFilters(state.filters, getTaskCategories([]));
-  ui.renderTaskList([], state.filters, state.searchQuery);
   ui.renderSidebar(enrichProjects(state.projects), projectId);
   setActiveNavigation('project');
+
+  if (alreadyListening) {
+    renderProjectTasks();
+    return;
+  }
+
+  ui.renderSkeletonCards(2);
   startProjectTaskListener(projectId);
 }
 
@@ -423,17 +436,25 @@ function handleProjectSwitch(projectId) {
  */
 function startProjectTaskListener(projectId) {
   detachProjectTaskListener();
-  activeTaskUnsubscribe = db.listenToTasks(state.user.uid, projectId, handleProjectTasksSnapshot);
+  activeTaskProjectId = projectId;
+  activeTaskUnsubscribe = db.listenToTasks(state.user.uid, projectId, (tasks, error) => {
+    handleProjectTasksSnapshot(projectId, tasks, error);
+  });
   state.listeners.push(activeTaskUnsubscribe);
 }
 
 /**
  * Handles task snapshots for the active project.
+ * @param {string} projectId - Project ID that produced the snapshot.
  * @param {Array} tasks - Project tasks.
  * @param {string} [error] - Optional mapped error.
  * @returns {void}
  */
-function handleProjectTasksSnapshot(tasks, error) {
+function handleProjectTasksSnapshot(projectId, tasks, error) {
+  if (projectId !== state.currentProjectId) {
+    return;
+  }
+
   if (error) {
     ui.renderErrorBanner(error);
     return;
@@ -602,6 +623,7 @@ function resetSignedOutState() {
   state.unreadCount = 0;
   state.listeners = [];
   activeTaskUnsubscribe = null;
+  activeTaskProjectId = null;
   dashboardUnsubscribe = null;
   dashboardTasks = [];
   currentEditingTaskId = null;
@@ -616,6 +638,7 @@ function detachFirestoreListeners() {
   state.listeners.forEach((unsubscribe) => safeUnsubscribe(unsubscribe));
   state.listeners = [];
   activeTaskUnsubscribe = null;
+  activeTaskProjectId = null;
   dashboardUnsubscribe = null;
 }
 
@@ -631,6 +654,7 @@ function detachProjectTaskListener() {
   removeTrackedListener(activeTaskUnsubscribe);
   safeUnsubscribe(activeTaskUnsubscribe);
   activeTaskUnsubscribe = null;
+  activeTaskProjectId = null;
 }
 
 /**
@@ -761,7 +785,7 @@ function handleProjectClick(event, target) {
 function handleTaskClick(target) {
   const action = target.dataset.taskAction;
 
-  if (!action || action === 'toggle-status') {
+  if (!action) {
     return;
   }
 
@@ -788,6 +812,10 @@ function handleTaskAction(action, taskId, projectId) {
     ui.showEditTaskModal(task);
   } else if (action === 'delete') {
     requestTaskDeleteConfirmation(task);
+  } else if (action === 'finish') {
+    requestTaskStatusConfirmation(task, STATUS_DONE, 'Mark this task as done?');
+  } else if (action === 'reopen') {
+    requestTaskStatusConfirmation(task, STATUS_TODO, 'Reopen this task?');
   }
 }
 
@@ -875,19 +903,6 @@ function handleModalClick(target) {
 function handleModalConfirm(target) {
   if (typeof target.onConfirmCallback === 'function') {
     target.onConfirmCallback();
-  }
-}
-
-/**
- * Handles delegated change events.
- * @param {Event} event - Change event.
- * @returns {void}
- */
-function handleDocumentChange(event) {
-  const target = event.target;
-
-  if (target.dataset.taskAction === 'toggle-status') {
-    handleTaskCompleteToggle(target);
   }
 }
 
@@ -1091,21 +1106,6 @@ async function updateTask(task, taskData) {
 }
 
 /**
- * Handles task completion checkbox toggles.
- * @param {HTMLInputElement} target - Checkbox input.
- * @returns {Promise<void>}
- */
-async function handleTaskCompleteToggle(target) {
-  const task = findTask(target.dataset.taskId, target.dataset.projectId);
-
-  if (!task) {
-    return;
-  }
-
-  await updateTaskStatus(task, target.checked ? STATUS_DONE : STATUS_TODO);
-}
-
-/**
  * Updates task status through db.js.
  * @param {Object} task - Task object.
  * @param {string} status - Next status.
@@ -1120,6 +1120,33 @@ async function updateTaskStatus(task, status) {
       await writeActivitySafely({ type: 'task_completed', taskId: task.id, taskTitle: task.title, projectId });
     }
   } catch (err) {
+    throw normalizeError(err, 'Something went wrong. Please try again.');
+  }
+}
+
+/**
+ * Requests confirmation before changing task completion status.
+ * @param {Object} task - Task object.
+ * @param {string} status - Next task status.
+ * @param {string} message - Confirmation message.
+ * @returns {void}
+ */
+function requestTaskStatusConfirmation(task, status, message) {
+  ui.showConfirmModal(message, () => confirmTaskStatusUpdate(task, status));
+}
+
+/**
+ * Applies a confirmed task status update.
+ * @param {Object} task - Task object.
+ * @param {string} status - Next task status.
+ * @returns {Promise<void>}
+ */
+async function confirmTaskStatusUpdate(task, status) {
+  try {
+    await updateTaskStatus(task, status);
+    ui.hideModal();
+  } catch (err) {
+    ui.hideModal();
     ui.renderErrorBanner(normalizeError(err, 'Something went wrong. Please try again.'));
   }
 }
@@ -1210,7 +1237,7 @@ function buildTaskDataFromForm(form) {
   return {
     title: getFormValue(form, 'title'),
     description: getFormValue(form, 'description'),
-    dueDate: parseDueDate(getFormValue(form, 'dueDate')),
+    dueDate: parseDueDate(getFormValue(form, 'dueDate'), getFormValue(form, 'dueTime')),
     priority: getFormValue(form, 'priority') || DEFAULT_PRIORITY,
     category: getFormValue(form, 'category'),
     status: getFormValue(form, 'status') || STATUS_TODO
@@ -1231,14 +1258,16 @@ function getFormValue(form, name) {
 /**
  * Parses a date input value.
  * @param {string} value - Date input value.
+ * @param {string} timeValue - Time input value.
  * @returns {Date|null} Date object or null.
  */
-function parseDueDate(value) {
+function parseDueDate(value, timeValue) {
   if (!value) {
     return null;
   }
 
-  return new Date(`${value}T00:00:00`);
+  const time = /^\d{2}:\d{2}$/.test(timeValue || '') ? timeValue : '00:00';
+  return new Date(`${value}T${time}:00`);
 }
 
 /**
