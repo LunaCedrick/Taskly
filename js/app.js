@@ -944,18 +944,38 @@ function handleSearchInput(event) {
 }
 
 /**
- * Shows the add task modal when a project is selected.
+ * Shows the add task modal for the active or first available project.
  * @returns {void}
  */
 function showAddTaskModal() {
-  if (!state.currentProjectId) {
-    ui.renderErrorBanner('This project no longer exists.');
+  const project = getTaskCreationProject();
+
+  if (!project) {
+    ui.renderErrorBanner('Create a project before adding tasks.');
     return;
+  }
+
+  if (state.currentProjectId !== project.id) {
+    handleProjectSwitch(project.id);
   }
 
   currentEditingTaskId = null;
   ui.showAddTaskModal();
   clearTaskFormError();
+}
+
+/**
+ * Gets the project that should receive a new task.
+ * @returns {Object|null} Active project, first project, or null.
+ */
+function getTaskCreationProject() {
+  const activeProject = findProject(state.currentProjectId);
+
+  if (activeProject) {
+    return activeProject;
+  }
+
+  return state.projects[0] || null;
 }
 
 /**
