@@ -1,0 +1,188 @@
+# Taskly Approved Fixes
+
+Date: 2026-06-16
+Status: Approved for implementation
+
+## Scope
+
+These fixes address the browser QA findings from the integration pass:
+
+- Google sign-in button does not open the popup.
+- Signed-out users can scroll into the hidden app shell.
+- Sign-in errors should appear in the login context.
+
+No new features are included in this patch set.
+
+## Patch 1 - Bind Login Events Before Auth Success
+
+Affected file: `js/app.js`
+
+Problem:
+
+`btn-google-signin` is currently bound through `bindDomEventsOnce()`, but that function only runs from `init(user)`. Since `init(user)` only runs after authentication succeeds, the login button has no click handler while signed out.
+
+Fix:
+
+Call `bindDomEventsOnce()` inside `boot()` before initializing the auth listener.
+
+Expected shape:
+
+```js
+function boot() {
+  bindDomEventsOnce();
+  auth.initAuthListener(init, handleAuthSignedOut);
+  router.initRouter();
+}
+```
+
+Reasoning:
+
+`bindDomEventsOnce()` is already guarded by `hasBoundDomEvents`, so keeping the existing call inside `init(user)` will not create duplicate event listeners.
+
+## Patch 2 - Ensure Hidden Views Do Not Occupy Layout
+
+Affected file: `style.css`
+
+Problem:
+
+Elements with the `hidden` attribute still receive component display rules such as `display: flex`, so `#view-app` occupies a second viewport below the login page. A signed-out user can scroll down and see the app shell.
+
+Fix:
+
+Add a global hidden-state rule near the base/reset CSS:
+
+```css
+[hidden] {
+  display: none;
+}
+```
+
+If component display rules still override this during browser QA, use the stronger browser-state contract:
+
+```css
+[hidden] {
+  display: none !important;
+}
+```
+
+Reasoning:
+
+The `hidden` attribute is an application state contract. Hidden views must not be visible, focusable, or layout-affecting.
+
+## Patch 3 - Render Sign-In Errors In The Login Card
+
+Affected files:
+
+- `js/ui.js`
+- `js/app.js`
+
+Problem:
+
+`handleGoogleSignIn()` sends errors through `ui.renderErrorBanner(...)`, but the login view already has `#login-error`. Sign-in failures should appear inside the login card.
+
+Fix:
+
+Add a `ui.renderLoginError(message)` helper that writes to `#login-error`, then call it from `handleGoogleSignIn()`.
+
+Expected behavior:
+
+- Popup blocked shows: `Google login popup was blocked. Allow popups for this site.`
+- Generic auth failure shows: `Sign-in failed. Please try again.`
+- Empty popup-closed result should not show a blank alert.
+
+## Retest Checklist
+
+After implementation, rerun browser QA and verify:
+
+- Clicking `Sign in with Google` opens the Google popup.
+- Popup blocked errors render inside the login card.
+- Signed-out login page cannot scroll into dashboard/sidebar UI.
+- `#view-app` has `hidden=true` and no layout box while signed out.
+- Sign-in, sign-out, and re-sign-in do not create duplicate listeners.
+- Static review still reports no FAIL items.
+
+## Patch 4 - Remove Unusable Custom Category Option
+
+Affected files:
+
+- `js/ui.js`
+- `style.css`
+
+Problem:
+
+The task modal offered a `Custom...` category option, but there was no input flow for a custom category. Choosing it saved the literal value `custom`.
+
+Fix:
+
+Remove the `custom` select option for MVP and remove the unused custom category CSS selector.
+
+Expected behavior:
+
+New task category selection is limited to supported visible categories unless a previously saved non-standard category is being edited.
+
+## Patch 5 - Stabilize Sidebar Navigation State
+
+Affected files:
+
+- `js/app.js`
+- `js/ui.js`
+
+Problem:
+
+Project links were handled both as generic `data-view="project"` navigation and as project switches. This caused inconsistent view switching and active tab highlights.
+
+Fix:
+
+Add a `ui.updateNavigationState(activeView, activeProjectId)` helper and have `app.js` call it whenever the active view or project changes. Project links are now excluded from generic view navigation and handled only by the project switch path.
+
+Expected behavior:
+
+Dashboard, My Tasks, Settings, and active project highlights stay aligned with the visible view.
+
+## Patch 6 - Switch To New Project After Creation
+
+Affected file: `js/app.js`
+
+Problem:
+
+Creating a project updated the sidebar but did not reliably move the user into the newly created project, making project navigation feel inconsistent.
+
+Fix:
+
+Track the newly created project ID and switch to it once the realtime projects snapshot includes it.
+
+Expected behavior:
+
+After creating a project, Taskly opens that project and highlights it in the sidebar.
+
+## Patch 7 - Make Global Search Route To Tasks
+
+Affected file: `js/app.js`
+
+Problem:
+
+The search input was visible globally but only rendered filtered results in the task/project view.
+
+Fix:
+
+When search is used from Dashboard or Settings, route into the task area before rendering filtered task results.
+
+Expected behavior:
+
+Typing in search from another view moves the user into My Tasks or the current project task list.
+
+## Patch 8 - Close Sign-Out Confirmation Modal
+
+Affected file: `js/app.js`
+
+Problem:
+
+After confirming sign-out, the confirmation modal stayed open while the login view was shown.
+
+Fix:
+
+Hide the modal after sign-out completes and also during auth sign-out cleanup.
+
+Expected behavior:
+
+The sign-out confirmation modal disappears when the user is signed out.

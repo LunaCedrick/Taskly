@@ -265,6 +265,7 @@ taskly/
 │   ├── ui.js           ← All DOM rendering, shared components
 │   └── app.js          ← Orchestrator, state, event listeners
 ├── .agents/
+│   ├── ALIGNMENT_FIXES.md ← Active cross-session fix ledger
 │   └── skills/
 │       ├── setup/SKILL.md
 │       ├── auth/SKILL.md
@@ -283,6 +284,7 @@ taskly/
 │       ├── responsive/SKILL.md
 │       ├── accessibility/SKILL.md
 │       ├── performance/SKILL.md
+│       ├── alignment-fix/SKILL.md ← Maintenance skill, not a session
 │       └── SESSION_TEMPLATE.md ← Authoring template only, not a session
 ├── AGENTS.md           ← This file — read every session
 ├── PLAN.md             ← Full architecture plan
@@ -370,6 +372,7 @@ db.js
 
 ui.js
   ✅ renderSidebar(projects, activeProjectId)
+  ✅ renderSidebarUser(user)
   ✅ renderProjectList(projects)
   ✅ renderTaskList(tasks, filters, searchQuery)
   ✅ renderTaskCard(task)
@@ -380,6 +383,11 @@ ui.js
   ✅ renderErrorBanner(message)
   ✅ renderNotificationPanel(notifications)
   ✅ renderActivityFeed(activities)
+  ✅ renderSettingsView(user, notificationStatus)
+  ✅ renderTaskModalValidation(message)
+  ✅ clearTaskModalValidation()
+  ✅ renderProjectModalValidation(message)
+  ✅ clearProjectModalValidation()
   ✅ showAddTaskModal()
   ✅ showEditTaskModal(task)
   ✅ showConfirmModal(message, onConfirm)
@@ -403,8 +411,46 @@ app.js
   ✅ handleSignOut() — detaches listeners, clears state
   ✅ Network status listener (online/offline events)
   ❌ No direct Firestore calls — always via db.js
-  ❌ No direct DOM manipulation — always via ui.js
+  ❌ No user-visible DOM writes when a ui.js helper exists
 ```
+
+### UI Write Boundary
+
+app.js owns event handling, event target reads, form value reads,
+and orchestration decisions. User-visible DOM writes belong in
+ui.js when a helper exists.
+
+Required ui.js helper contracts for app.js:
+
+- `renderSidebarUser(user)` updates `#user-photo` and `#user-name`.
+- `renderTaskModalValidation(message)` shows task modal inline validation.
+- `clearTaskModalValidation()` clears task modal inline validation.
+- `renderProjectModalValidation(message)` shows project modal inline validation.
+- `clearProjectModalValidation()` clears project modal inline validation.
+
+app.js may read DOM event targets and form values directly because
+it owns event listeners. It must call these helpers for the user-visible
+writes above once they exist.
+
+### Settings Navigation Contract
+
+Settings must have a visible navigation entry using
+`data-view="settings"`. The entry lives in the existing sidebar
+navigation unless a later source-of-truth update deliberately chooses
+another accessible location.
+
+Settings owns the UI/navigation contract and required HTML target.
+app.js owns event handling for the `settings` navigation target.
+
+### Settings Notification Contract
+
+Settings v1 displays notification permission status and concise help.
+It must not imply a working enable-notifications toggle unless a public
+auth/app permission request contract exists.
+
+Settings and app code must not call private auth-module internals. If
+permission is denied, show exactly:
+`Notifications disabled. You can enable them in browser settings.`
 
 ### Application State — Lives Only In app.js
 ```javascript
@@ -653,6 +699,9 @@ router.js, db.js, ui.js, app.js
 #offline-banner
 ```
 
+`#notif-count` is the only canonical notification badge ID.
+Do not add or preserve `#notification-count` in new code.
+
 ---
 
 ## 9. CODE STANDARDS
@@ -753,6 +802,8 @@ Never allow horizontal scrolling at any breakpoint.
 - All icon buttons have aria-label
 - Notification bell: aria-label="Notifications",
   aria-live="polite" on count badge
+- Notification badge ID: `#notif-count` only; `#notification-count`
+  is stale and must not be used
 - Search input: aria-label="Search tasks"
 - Offline banner: role="alert" for immediate announcement
 - Error messages: role="alert"
@@ -874,7 +925,7 @@ Session 11 : .agents/skills/offline/SKILL.md
 
 Session 12 : .agents/skills/settings/SKILL.md
              Settings view — profile display, notification
-             toggle, theme placeholder, sign-out with
+             status/help, theme placeholder, sign-out with
              confirmation modal
 
 Session 13 : .agents/skills/app/SKILL.md
@@ -898,10 +949,18 @@ Session 17 : .agents/skills/performance/SKILL.md
              Listener cleanup audit, unused CSS removal,
              no console.logs, PWA manifest prep,
              Vercel deployment final steps
+
+Maintenance: .agents/skills/alignment-fix/SKILL.md
+             Cross-session contract alignment before code fixes.
+             Reads .agents/ALIGNMENT_FIXES.md, patches AGENTS.md
+             and affected skills first, then hands off to the
+             relevant build skill. This is not Session 18.
 ```
 
 ### Skill Usage Rules
 - Always feed AGENTS.md first, then the relevant skill
+- If .agents/ALIGNMENT_FIXES.md has active items, use
+  alignment-fix before rerunning any affected build skill
 - Never feed two build skills in the same session
 - skill-review can be combined with any build skill
 - If Codex generates something not in the skill scope:
@@ -1064,7 +1123,7 @@ Report what was built and flag any issues.
 Read AGENTS.md and .agents/skills/settings/SKILL.md completely.
 All prior modules exist — do not modify them.
 Build settings view — profile display, notification
-toggle, theme placeholder, and sign-out with
+status/help, visible settings navigation, theme placeholder, and sign-out with
 confirmation modal exactly as specified.
 Comment every function with JSDoc format.
 After building, run .agents/skills/review/SKILL.md.
@@ -1080,7 +1139,7 @@ Implement the state object, init(), all event listeners,
 Firestore listener cleanup on sign-out, search/filter
 wiring, network status handling, and project switching.
 All Firebase calls go through db.js.
-All DOM updates go through ui.js.
+All user-visible DOM updates go through ui.js when helpers exist.
 Comment every function with JSDoc format.
 After building, run .agents/skills/review/SKILL.md.
 Report what was built and flag any issues.

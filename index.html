@@ -58,6 +58,9 @@
         <a href="#" class="nav-item" data-view="tasks" aria-label="My Tasks">
           My Tasks
         </a>
+        <a href="#" class="nav-item" data-view="settings" aria-label="Settings">
+          Settings
+        </a>
       </nav>
 
       <!-- Sidebar projects -->
@@ -102,28 +105,134 @@
             class="search-input"
             placeholder="Search tasks..."
             aria-label="Search tasks"
+            data-debounce-ms="150"
           />
           <button id="btn-add-task" class="btn-primary" type="button" aria-label="Add new task">
             + Add Task
           </button>
           <button id="notification-bell" class="notification-bell" type="button" aria-label="Notifications">
             &#128276;
-            <span id="notif-count" class="notification-count" aria-live="polite" hidden>0</span>
+            <span id="notif-count" class="notification-bell__count" aria-live="polite" hidden>0</span>
           </button>
         </div>
       </header>
 
       <!-- Content region -->
       <main class="content" id="main-content">
-        <section id="dashboard-view" class="content-view">
-          <!-- Rendered by ui.js in Session 6 -->
+        <section id="view-dashboard" class="content-view dashboard" aria-labelledby="topbar-title">
+          <!-- Dashboard header -->
+          <header class="dashboard__header">
+            <p class="dashboard__eyebrow">Today at a glance</p>
+            <h2 class="dashboard__title">Focus on what needs attention</h2>
+            <p class="dashboard__subtitle">
+              Tasks are grouped across every project so overdue, due today, and upcoming work stay visible.
+            </p>
+          </header>
+
+          <!-- Notification alerts -->
+          <div id="notification-alerts" class="notification-alerts" aria-live="polite">
+            <!-- In-app alerts rendered by ui.renderNotificationAlerts() -->
+          </div>
+
+          <!-- Dashboard stats -->
+          <section class="dashboard-section" aria-label="Dashboard overview">
+            <div class="dashboard-section__header">
+              <h2 class="dashboard-section__title">Overview</h2>
+              <span class="dashboard-section__meta">All projects</span>
+            </div>
+            <div id="dashboard-stats" class="dashboard__stats" aria-live="polite">
+              <!-- Stats rendered by ui.renderStats() -->
+            </div>
+          </section>
+
+          <!-- Dashboard task and activity regions -->
+          <div class="dashboard__grid">
+            <!-- Overdue tasks -->
+            <section class="dashboard-section dashboard-section--overdue" aria-label="Overdue tasks">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Overdue</h2>
+                <span class="dashboard-section__meta">Needs action</span>
+              </div>
+              <div id="dashboard-overdue" class="dashboard-section__body" aria-live="polite">
+                <!-- Overdue task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Today tasks -->
+            <section class="dashboard-section dashboard-section--today" aria-label="Tasks due today">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Today</h2>
+                <span class="dashboard-section__meta">Due now</span>
+              </div>
+              <div id="dashboard-today" class="dashboard-section__body" aria-live="polite">
+                <!-- Today task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Upcoming tasks -->
+            <section class="dashboard-section dashboard-section--upcoming" aria-label="Upcoming tasks">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Upcoming</h2>
+                <span class="dashboard-section__meta">Next deadlines</span>
+              </div>
+              <div id="dashboard-upcoming" class="dashboard-section__body" aria-live="polite">
+                <!-- Upcoming task cards rendered by ui.renderDashboard() -->
+              </div>
+            </section>
+
+            <!-- Recent activity -->
+            <section class="dashboard-section dashboard-section--activity" aria-label="Recent activity">
+              <div class="dashboard-section__header">
+                <h2 class="dashboard-section__title">Recent Activity</h2>
+                <span class="dashboard-section__meta">Latest changes</span>
+              </div>
+              <ul id="activity-feed" class="dashboard-section__body" aria-live="polite">
+                <!-- Activity items rendered by ui.renderActivityFeed() -->
+              </ul>
+            </section>
+          </div>
         </section>
 
-        <section id="project-view" class="content-view" hidden>
-          <!-- Rendered by ui.js in Sessions 7-8 -->
+        <section id="view-project" class="content-view project-shell" hidden aria-labelledby="project-title">
+          <!-- Project header -->
+          <header id="project-header" class="project-header">
+            <div class="project-header__body">
+              <h2 id="project-title" class="project-header__title">Select a project</h2>
+              <p id="project-meta" class="project-header__meta">Choose a project from the sidebar to view its tasks.</p>
+            </div>
+            <div class="project-header__actions">
+              <button
+                id="btn-edit-project"
+                class="btn-ghost project-header__button"
+                type="button"
+                aria-label="Rename project"
+                disabled
+              >
+                Rename
+              </button>
+              <button
+                id="btn-delete-project"
+                class="btn-danger project-header__button"
+                type="button"
+                aria-label="Delete project"
+                disabled
+              >
+                Delete
+              </button>
+            </div>
+          </header>
+
+          <!-- Project task list -->
+          <div id="task-filter-bar" class="task-filter-bar" aria-label="Task filters">
+            <!-- Filter controls rendered by ui.renderTaskFilters() -->
+          </div>
+
+          <div id="task-list" class="project-shell__tasks" aria-live="polite">
+            <!-- Task cards rendered by ui.renderTaskList() in Sessions 8-9 -->
+          </div>
         </section>
 
-        <section id="settings-view" class="content-view" hidden>
+        <section id="view-settings" class="content-view settings" hidden aria-labelledby="topbar-title">
           <!-- Rendered by ui.js in Session 12 -->
         </section>
       </main>
@@ -132,7 +241,9 @@
 
   <!-- Global overlays -->
   <div id="offline-banner" class="offline-banner" hidden role="alert">
-    Offline Mode - Changes will sync automatically
+    <p class="offline-banner__message">
+      Offline Mode - Changes will sync automatically
+    </p>
   </div>
 
   <!-- Notification panel -->

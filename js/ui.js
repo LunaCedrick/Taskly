@@ -1,139 +1,2152 @@
 /**
  * ui.js - DOM rendering only.
- * Scope: All render functions, modals, banners, and empty states.
+ * Scope: Shared render functions, modals, banners, skeletons, and empty states.
  * No Firebase calls. No application state management.
- * Use textContent for all external data. Never use innerHTML.
- * See: AGENTS.md section 5.
  */
 
 /**
- * Renders the sidebar project list.
- * @param {Array} projects - Array of project objects.
+ * Creates an element with optional class names and text content.
+ * @param {string} tag - HTML tag name.
+ * @param {string} [className] - Space-separated class names.
+ * @param {string} [text] - Text content assigned safely.
+ * @returns {HTMLElement} Created element.
+ */
+function createEl(tag, className, text) {
+  const el = document.createElement(tag);
+
+  if (className) {
+    el.className = className;
+  }
+
+  if (text !== undefined) {
+    el.textContent = text;
+  }
+
+  return el;
+}
+
+/**
+ * Clears all child nodes from a container element.
+ * @param {HTMLElement} container - Container to clear.
+ * @returns {void}
+ */
+function clearContainer(container) {
+  while (container.firstChild) {
+    container.removeChild(container.firstChild);
+  }
+}
+
+/**
+ * Formats a Firestore Timestamp or date-like value for display.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Short display date or empty string.
+ */
+function formatDate(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/**
+ * Formats a task due date with optional due time.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Due date display text.
+ */
+function formatDueDate(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  if (date.getHours() === 0 && date.getMinutes() === 0) {
+    return formatDate(date);
+  }
+
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+/**
+ * Formats a Firestore Timestamp or date-like value for date inputs.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Date input value in yyyy-mm-dd format.
+ */
+function formatInputDate(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  return Number.isNaN(date.getTime()) ? '' : formatDateInputValue(date);
+}
+
+/**
+ * Formats a date value for date input without UTC offset drift.
+ * @param {Date} date - Date object.
+ * @returns {string} Date input value.
+ */
+function formatDateInputValue(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Formats a Firestore Timestamp or date-like value for time inputs.
+ * @param {Object|null} timestamp - Timestamp, Date, date string, or null.
+ * @returns {string} Time input value in HH:mm format.
+ */
+function formatInputTime(timestamp) {
+  if (!timestamp) {
+    return '';
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+
+  if (Number.isNaN(date.getTime()) || (date.getHours() === 0 && date.getMinutes() === 0)) {
+    return '';
+  }
+
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+/**
+ * Returns true when a timestamp falls before today.
+ * @param {Object|null} timestamp - Firestore Timestamp or null.
+ * @returns {boolean} Whether the timestamp is overdue.
+ */
+function isOverdue(timestamp) {
+  if (!timestamp) {
+    return false;
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return date < today;
+}
+
+/**
+ * Returns true when a timestamp falls on today's date.
+ * @param {Object|null} timestamp - Firestore Timestamp or null.
+ * @returns {boolean} Whether the timestamp is today.
+ */
+function isToday(timestamp) {
+  if (!timestamp) {
+    return false;
+  }
+
+  const date = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
+  const today = new Date();
+
+  return date.toDateString() === today.toDateString();
+}
+
+/**
+ * Renders the full sidebar dynamic project area.
+ * @param {Array} projects - Project objects to render.
  * @param {string|null} activeProjectId - Currently active project ID.
  * @returns {void}
  */
 function renderSidebar(projects, activeProjectId) {
-  // TODO: Session 5.
+  renderProjectList(projects, activeProjectId);
 }
 
 /**
- * Renders the project list.
- * @param {Array} projects - Array of project objects.
+ * Updates active primary and project navigation styles.
+ * @param {string} activeView - Active app view.
+ * @param {string|null} activeProjectId - Active project ID.
  * @returns {void}
  */
-function renderProjectList(projects) {
-  // TODO: Session 5.
+function updateNavigationState(activeView, activeProjectId) {
+  updatePrimaryNavigationState(activeView);
+  updateProjectNavigationState(activeView, activeProjectId);
 }
 
 /**
- * Renders the task list with optional filters and search.
- * @param {Array} tasks - Array of task objects.
- * @param {Object} filters - Active filter values.
+ * Updates active state for primary sidebar links.
+ * @param {string} activeView - Active app view.
+ * @returns {void}
+ */
+function updatePrimaryNavigationState(activeView) {
+  document.querySelectorAll('.sidebar-nav .nav-item[data-view]').forEach((item) => {
+    const isTasksView = activeView === 'tasks' || activeView === 'project';
+    const isActive = item.dataset.view === activeView || (item.dataset.view === 'tasks' && isTasksView);
+
+    setNavigationItemState(item, isActive);
+  });
+}
+
+/**
+ * Updates active state for project sidebar links.
+ * @param {string} activeView - Active app view.
+ * @param {string|null} activeProjectId - Active project ID.
+ * @returns {void}
+ */
+function updateProjectNavigationState(activeView, activeProjectId) {
+  const canHighlightProject = activeView === 'tasks' || activeView === 'project';
+
+  document.querySelectorAll('#sidebar-project-list .project-item[data-project-id]').forEach((item) => {
+    setNavigationItemState(item, canHighlightProject && item.dataset.projectId === activeProjectId);
+  });
+}
+
+/**
+ * Applies or clears active navigation semantics.
+ * @param {HTMLElement} item - Navigation item.
+ * @param {boolean} isActive - Whether item is active.
+ * @returns {void}
+ */
+function setNavigationItemState(item, isActive) {
+  item.classList.toggle('nav-item--active', isActive);
+
+  if (isActive) {
+    item.setAttribute('aria-current', 'page');
+    return;
+  }
+
+  item.removeAttribute('aria-current');
+}
+
+/**
+ * Renders signed-in user details in the sidebar profile area.
+ * @param {Object|null} user - Authenticated user profile data.
+ * @returns {void}
+ */
+function renderSidebarUser(user) {
+  const photo = document.getElementById('user-photo');
+  const name = document.getElementById('user-name');
+  const displayName = user && user.displayName ? user.displayName : 'Taskly user';
+
+  if (name) {
+    name.textContent = displayName;
+  }
+
+  renderSidebarUserPhoto(photo, user, displayName);
+}
+
+/**
+ * Renders the sidebar profile image or safe fallback state.
+ * @param {HTMLImageElement|null} photo - Sidebar user photo element.
+ * @param {Object|null} user - Authenticated user profile data.
+ * @param {string} displayName - Safe display name.
+ * @returns {void}
+ */
+function renderSidebarUserPhoto(photo, user, displayName) {
+  if (!photo) {
+    return;
+  }
+
+  photo.alt = `${displayName} profile photo`;
+
+  if (user && user.photoURL) {
+    photo.src = user.photoURL;
+    return;
+  }
+
+  photo.removeAttribute('src');
+}
+
+/**
+ * Renders sidebar projects with progress bars.
+ * @param {Array} projects - Project objects to render.
+ * @param {string|null} activeProjectId - Currently active project ID.
+ * @returns {void}
+ */
+function renderProjectList(projects, activeProjectId) {
+  const container = document.getElementById('sidebar-project-list');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  appendProjectListContent(container, projects, activeProjectId);
+}
+
+/**
+ * Appends project rows or the no-projects message.
+ * @param {HTMLElement} container - Project list container.
+ * @param {Array} projects - Project objects to render.
+ * @param {string|null} activeProjectId - Currently active project ID.
+ * @returns {void}
+ */
+function appendProjectListContent(container, projects, activeProjectId) {
+  if (!projects || projects.length === 0) {
+    container.appendChild(createEl('p', 'sidebar-empty', getEmptyStateConfig('no-projects').text));
+    return;
+  }
+
+  projects.forEach((project) => {
+    container.appendChild(buildProjectItem(project, activeProjectId));
+  });
+}
+
+/**
+ * Builds a single sidebar project item.
+ * @param {Object} project - Project data.
+ * @param {string|null} activeProjectId - Currently active project ID.
+ * @returns {HTMLElement} Project link element.
+ */
+function buildProjectItem(project, activeProjectId) {
+  const item = createEl('a', 'nav-item project-item');
+  item.href = '#';
+  item.dataset.view = 'project';
+  item.dataset.projectId = project.id;
+  item.setAttribute('aria-label', `Open project ${project.name}`);
+
+  if (project.id === activeProjectId) {
+    item.classList.add('nav-item--active');
+  }
+
+  item.appendChild(createEl('span', 'project-item__name', project.name));
+  item.appendChild(buildProgressBar(project.taskCount || 0, project.completedCount || 0));
+
+  return item;
+}
+
+/**
+ * Builds a project progress bar.
+ * @param {number} total - Total task count.
+ * @param {number} completed - Completed task count.
+ * @returns {HTMLElement} Progress bar element.
+ */
+function buildProgressBar(total, completed) {
+  const safeTotal = Number(total) || 0;
+  const safeCompleted = Number(completed) || 0;
+  const percent = safeTotal > 0
+    ? Math.min(100, Math.max(0, Math.round((safeCompleted / safeTotal) * 100)))
+    : 0;
+  const track = createEl('div', 'progress-bar');
+  const fill = createEl('div', 'progress-bar__fill');
+
+  fill.style.width = `${percent}%`;
+  track.appendChild(fill);
+
+  return track;
+}
+
+/**
+ * Renders the selected project shell without rendering project tasks.
+ * Project progress counts are enriched by app.js in Session 13.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function renderProjectView(project) {
+  const title = document.getElementById('project-title');
+  const meta = document.getElementById('project-meta');
+
+  if (!title || !meta) {
+    return;
+  }
+
+  if (!project) {
+    title.textContent = 'Select a project';
+    meta.textContent = 'Choose a project from the sidebar to view its tasks.';
+    updateProjectActionButtons(null);
+    return;
+  }
+
+  title.textContent = project.name || 'Untitled project';
+  meta.textContent = getProjectMeta(project);
+  updateProjectActionButtons(project);
+}
+
+/**
+ * Builds concise metadata for the project header.
+ * @param {Object} project - Project object to describe.
+ * @returns {string} Project metadata copy.
+ */
+function getProjectMeta(project) {
+  const hasTaskCounts = project.taskCount !== undefined || project.completedCount !== undefined;
+
+  if (hasTaskCounts) {
+    return formatProjectTaskCounts(project.taskCount || 0, project.completedCount || 0);
+  }
+
+  if (project.createdAt) {
+    return `Created ${formatDate(project.createdAt)}`;
+  }
+
+  return 'Project tasks will appear below.';
+}
+
+/**
+ * Formats project task count metadata.
+ * @param {number} taskCount - Total task count.
+ * @param {number} completedCount - Completed task count.
+ * @returns {string} Task count summary.
+ */
+function formatProjectTaskCounts(taskCount, completedCount) {
+  const total = Number(taskCount) || 0;
+  const completed = Number(completedCount) || 0;
+  const taskLabel = total === 1 ? 'task' : 'tasks';
+
+  return `${total} ${taskLabel}, ${completed} complete`;
+}
+
+/**
+ * Updates project action buttons for the active project.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function updateProjectActionButtons(project) {
+  const buttons = [
+    document.getElementById('btn-edit-project'),
+    document.getElementById('btn-delete-project'),
+  ];
+
+  buttons.forEach((button) => updateProjectActionButton(button, project));
+}
+
+/**
+ * Updates one project action button with active project data.
+ * @param {HTMLButtonElement|null} button - Project action button.
+ * @param {Object|null} project - Active project object or null.
+ * @returns {void}
+ */
+function updateProjectActionButton(button, project) {
+  if (!button) {
+    return;
+  }
+
+  button.disabled = !project;
+
+  if (project && project.id) {
+    button.dataset.projectId = project.id;
+  } else {
+    delete button.dataset.projectId;
+  }
+}
+
+/**
+ * Renders a list of task cards into the task list container.
+ * @param {Array} tasks - Pre-filtered task objects.
+ * @param {Object} filters - Current filter values.
  * @param {string} searchQuery - Current search query.
  * @returns {void}
  */
 function renderTaskList(tasks, filters, searchQuery) {
-  // TODO: Session 5.
+  const container = document.getElementById('task-list');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+
+  if (tasks.length === 0) {
+    container.appendChild(renderEmptyStateElement(getTaskEmptyState(filters, searchQuery)));
+    return;
+  }
+
+  container.appendChild(buildTaskCardFragment(tasks));
 }
 
 /**
- * Renders a single task card.
+ * Renders status, priority, and category filter controls.
+ * Filtering itself is handled by app.js in Session 13.
+ * @param {Object} filters - Current filter values.
+ * @param {Array} categories - Category labels to expose.
+ * @returns {void}
+ */
+function renderTaskFilters(filters, categories) {
+  const container = document.getElementById('task-filter-bar');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildFilterGroup('Status', 'status', getStatusFilterOptions()));
+  container.appendChild(buildFilterGroup('Priority', 'priority', getPriorityFilterOptions()));
+  container.appendChild(buildFilterGroup('Category', 'category', getCategoryFilterOptions(categories)));
+  updateActiveFilters(filters || {});
+}
+
+/**
+ * Updates active filter button states without rebuilding task cards.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateActiveFilters(filters) {
+  const container = document.getElementById('task-filter-bar');
+
+  if (!container) {
+    return;
+  }
+
+  updateFilterButtons(container, filters || {});
+}
+
+/**
+ * Builds a filter group block.
+ * @param {string} label - Visible group label.
+ * @param {string} type - Filter type.
+ * @param {Array} options - Filter option configs.
+ * @returns {HTMLElement} Filter group element.
+ */
+function buildFilterGroup(label, type, options) {
+  const group = createEl('section', 'task-filter-group');
+  const optionsWrap = createEl('div', 'task-filter-options');
+
+  group.setAttribute('aria-label', `${label} filter`);
+  group.appendChild(createEl('span', 'task-filter-group__label', label));
+  options.forEach((option) => optionsWrap.appendChild(buildFilterOption(type, option)));
+  group.appendChild(optionsWrap);
+
+  return group;
+}
+
+/**
+ * Builds one filter option button.
+ * @param {string} type - Filter type.
+ * @param {Object} option - Filter option config.
+ * @returns {HTMLButtonElement} Filter button.
+ */
+function buildFilterOption(type, option) {
+  const button = createEl('button', 'task-filter-option', option.label);
+
+  button.type = 'button';
+  button.dataset.filterType = type;
+  button.dataset.filterValue = option.value;
+  button.setAttribute('aria-pressed', 'false');
+
+  return button;
+}
+
+/**
+ * Updates all filter buttons for the current filters.
+ * @param {HTMLElement} container - Filter bar container.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateFilterButtons(container, filters) {
+  const buttons = container.querySelectorAll('[data-filter-type][data-filter-value]');
+
+  buttons.forEach((button) => updateFilterButton(button, filters));
+}
+
+/**
+ * Updates one filter button active state.
+ * @param {HTMLButtonElement} button - Filter option button.
+ * @param {Object} filters - Current filter values.
+ * @returns {void}
+ */
+function updateFilterButton(button, filters) {
+  const type = button.dataset.filterType;
+  const selectedValue = filters[type] || 'all';
+  const isActive = button.dataset.filterValue === selectedValue;
+
+  button.classList.toggle('task-filter-option--active', isActive);
+  button.setAttribute('aria-pressed', String(isActive));
+}
+
+/**
+ * Gets status filter options.
+ * @returns {Array} Status filter options.
+ */
+function getStatusFilterOptions() {
+  return [
+    { value: 'all', label: 'All' },
+    { value: STATUS_TODO, label: 'To do' },
+    { value: STATUS_PROGRESS, label: 'In progress' },
+    { value: STATUS_DONE, label: 'Done' },
+  ];
+}
+
+/**
+ * Gets priority filter options.
+ * @returns {Array} Priority filter options.
+ */
+function getPriorityFilterOptions() {
+  return ['all', 'high', 'medium', 'low', DEFAULT_PRIORITY].map((value) => ({
+    value,
+    label: getFilterLabel(value),
+  }));
+}
+
+/**
+ * Gets category filter options.
+ * @param {Array} categories - Category labels from app.js.
+ * @returns {Array} Category filter options.
+ */
+function getCategoryFilterOptions(categories) {
+  const uniqueCategories = [...new Set((categories || []).filter(Boolean))];
+  const options = [{ value: 'all', label: 'All' }];
+
+  uniqueCategories.forEach((category) => {
+    options.push({ value: category, label: category });
+  });
+
+  return options;
+}
+
+/**
+ * Converts filter values to human-readable labels.
+ * @param {string} value - Filter value.
+ * @returns {string} Human-readable label.
+ */
+function getFilterLabel(value) {
+  const labels = {
+    all: 'All',
+    todo: 'To do',
+    inprogress: 'In progress',
+    done: 'Done',
+    none: 'None',
+  };
+
+  return labels[value] || value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Gets the empty state type for a rendered task list.
+ * @param {Object} filters - Current filter values.
+ * @param {string} searchQuery - Current search query.
+ * @returns {string} Empty state type.
+ */
+function getTaskEmptyState(filters, searchQuery) {
+  const safeFilters = filters || {};
+  const hasSearch = (searchQuery || '').trim() !== '';
+  const hasFilters =
+    (safeFilters.status || 'all') !== 'all' ||
+    (safeFilters.priority || 'all') !== 'all' ||
+    (safeFilters.category || 'all') !== 'all';
+
+  return hasSearch || hasFilters ? 'no-search-results' : 'no-tasks';
+}
+
+/**
+ * Builds a document fragment containing task cards.
+ * @param {Array} tasks - Task objects to render.
+ * @returns {DocumentFragment} Fragment containing task cards.
+ */
+function buildTaskCardFragment(tasks) {
+  const fragment = document.createDocumentFragment();
+
+  tasks.forEach((task) => {
+    fragment.appendChild(renderTaskCard(task));
+  });
+
+  return fragment;
+}
+
+/**
+ * Renders a single task card element.
  * @param {Object} task - Task object to render.
- * @returns {HTMLElement|null} Task card element when implemented.
+ * @returns {HTMLElement} Task card element.
  */
 function renderTaskCard(task) {
-  // TODO: Session 5.
-  return null;
+  const card = createEl('article', 'task-card');
+
+  card.dataset.taskId = task.id;
+
+  if (task.projectId) {
+    card.dataset.projectId = task.projectId;
+  }
+
+  applyTaskCardState(card, task);
+  card.appendChild(buildTaskStatusControl(task));
+  card.appendChild(buildTaskBody(task));
+  card.appendChild(buildTaskActions(task));
+
+  return card;
 }
 
 /**
- * Renders the dashboard view.
- * @param {Object} data - Dashboard data grouped by urgency.
+ * Applies state classes to a task card.
+ * @param {HTMLElement} card - Task card element.
+ * @param {Object} task - Task object.
+ * @returns {void}
+ */
+function applyTaskCardState(card, task) {
+  if (task.status === STATUS_DONE) {
+    card.classList.add('task-card--done');
+    return;
+  }
+
+  if (isOverdue(task.dueDate)) {
+    card.classList.add('task-card--overdue');
+  } else if (isToday(task.dueDate)) {
+    card.classList.add('task-card--today');
+  }
+}
+
+/**
+ * Builds a task completion action control.
+ * @param {Object} task - Task object.
+ * @returns {HTMLButtonElement} Status action button.
+ */
+function buildTaskStatusControl(task) {
+  const isDone = task.status === STATUS_DONE;
+  const button = createEl('button', `task-card__finish ${isDone ? 'task-card__finish--done' : ''}`, isDone ? 'Reopen' : 'Finish Task');
+
+  button.type = 'button';
+  button.dataset.taskAction = isDone ? 'reopen' : 'finish';
+  button.dataset.taskId = task.id;
+  button.setAttribute('aria-label', isDone ? `Reopen ${task.title}` : `Finish ${task.title}`);
+
+  if (task.projectId) {
+    button.dataset.projectId = task.projectId;
+  }
+
+  return button;
+}
+
+/**
+ * Builds the textual body of a task card.
+ * @param {Object} task - Task object.
+ * @returns {HTMLElement} Task body element.
+ */
+function buildTaskBody(task) {
+  const body = createEl('div', 'task-card__body');
+
+  body.appendChild(createEl('h3', 'task-card__title', task.title));
+
+  if (task.description) {
+    body.appendChild(createEl('p', 'task-card__description', task.description));
+  }
+
+  body.appendChild(buildTaskMeta(task));
+
+  return body;
+}
+
+/**
+ * Builds the metadata row for a task card.
+ * @param {Object} task - Task object.
+ * @returns {HTMLElement} Task metadata element.
+ */
+function buildTaskMeta(task) {
+  const meta = createEl('div', 'task-card__meta');
+
+  meta.appendChild(buildPriorityLabel(task.priority || DEFAULT_PRIORITY));
+  meta.appendChild(buildStatusLabel(task.status || STATUS_TODO));
+
+  if (task.category) {
+    meta.appendChild(createEl('span', 'task-card__category', task.category));
+  }
+
+  if (task.dueDate) {
+    meta.appendChild(createEl('span', 'task-card__due-date', formatDueDate(task.dueDate)));
+  }
+
+  return meta;
+}
+
+/**
+ * Builds a visible status label for the task card.
+ * @param {string} status - Task status value.
+ * @returns {HTMLElement} Status label element.
+ */
+function buildStatusLabel(status) {
+  const safeStatus = status || STATUS_TODO;
+  const labels = {
+    [STATUS_TODO]: 'To do',
+    [STATUS_PROGRESS]: 'In progress',
+    [STATUS_DONE]: 'Done',
+  };
+
+  return createEl('span', `task-card__status task-card__status--${safeStatus}`, labels[safeStatus] || 'To do');
+}
+
+/**
+ * Builds a priority dot plus text label.
+ * @param {string} priority - Task priority.
+ * @returns {HTMLElement} Priority label element.
+ */
+function buildPriorityLabel(priority) {
+  const safePriority = priority || DEFAULT_PRIORITY;
+  const wrap = createEl('span', `priority priority--${safePriority}`);
+  const label = safePriority.charAt(0).toUpperCase() + safePriority.slice(1);
+
+  wrap.appendChild(createEl('span', 'priority__dot'));
+  wrap.appendChild(createEl('span', 'priority__label', label));
+
+  return wrap;
+}
+
+/**
+ * Builds task card edit and delete controls.
+ * @param {Object} task - Task object.
+ * @returns {HTMLElement} Task actions element.
+ */
+function buildTaskActions(task) {
+  const actions = createEl('div', 'task-card__actions');
+  const editBtn = createTaskActionButton(task, 'edit', 'Edit');
+  const deleteBtn = createTaskActionButton(task, 'delete', 'Delete');
+
+  actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
+
+  return actions;
+}
+
+/**
+ * Creates a task action button for app.js event delegation.
+ * @param {Object} task - Task object.
+ * @param {string} action - Task action name.
+ * @param {string} text - Visible button text.
+ * @returns {HTMLButtonElement} Button element.
+ */
+function createTaskActionButton(task, action, text) {
+  const button = createEl('button', `task-card__action task-card__action--${action}`, text);
+
+  button.type = 'button';
+  button.dataset.taskAction = action;
+  button.dataset.taskId = task.id;
+  button.setAttribute('aria-label', `${text} ${task.title}`);
+
+  if (task.projectId) {
+    button.dataset.projectId = task.projectId;
+  }
+
+  return button;
+}
+
+/**
+ * Renders the full dashboard view from aggregated data.
+ * @param {Object} data - Dashboard data grouped by section.
  * @returns {void}
  */
 function renderDashboard(data) {
-  // TODO: Session 5.
+  renderStats(data.stats);
+  renderTaskSection('dashboard-overdue', data.overdue, 'no-overdue');
+  renderTaskSection('dashboard-today', data.today, 'no-tasks-today');
+  renderTaskSection('dashboard-upcoming', data.upcoming, 'no-upcoming');
+  renderActivityFeed(data.activity);
 }
 
 /**
- * Renders dashboard statistics.
- * @param {Object} stats - Computed dashboard statistics.
+ * Renders a dashboard task section.
+ * @param {string} containerId - Target section container ID.
+ * @param {Array} tasks - Section task objects.
+ * @param {string} emptyType - Empty state type for no tasks.
+ * @returns {void}
+ */
+function renderTaskSection(containerId, tasks, emptyType) {
+  const container = document.getElementById(containerId);
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(tasks.length === 0
+    ? renderEmptyStateElement(emptyType)
+    : buildTaskCardFragment(tasks));
+}
+
+/**
+ * Renders the four dashboard stat cards.
+ * @param {Object} stats - Stats object.
  * @returns {void}
  */
 function renderStats(stats) {
-  // TODO: Session 5.
+  const container = document.getElementById('dashboard-stats');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildStatsFragment(stats));
 }
 
 /**
- * Renders skeleton loading cards.
+ * Builds stat card elements.
+ * @param {Object} stats - Stats object.
+ * @returns {DocumentFragment} Fragment containing stat cards.
+ */
+function buildStatsFragment(stats) {
+  const fragment = document.createDocumentFragment();
+  const cards = [
+    { label: 'Total', value: stats.total, modifier: 'total' },
+    { label: 'Completed', value: stats.completed, modifier: 'completed' },
+    { label: 'In Progress', value: stats.inProgress, modifier: 'progress' },
+    { label: 'Overdue', value: stats.overdue, modifier: 'overdue' },
+  ];
+
+  cards.forEach((card) => fragment.appendChild(buildStatCard(card)));
+
+  return fragment;
+}
+
+/**
+ * Builds a dashboard stat card.
+ * @param {Object} card - Stat card configuration.
+ * @returns {HTMLElement} Stat card element.
+ */
+function buildStatCard(card) {
+  const cardEl = createEl('div', `stat-card stat-card--${card.modifier}`);
+
+  cardEl.appendChild(createEl('span', 'stat-card__value', String(card.value)));
+  cardEl.appendChild(createEl('span', 'stat-card__label', card.label));
+
+  return cardEl;
+}
+
+/**
+ * Renders placeholder skeleton cards into the task list container.
  * @param {number} count - Number of skeleton cards to render.
  * @returns {void}
  */
 function renderSkeletonCards(count) {
-  // TODO: Session 5.
+  const container = document.getElementById('task-list');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildSkeletonFragment(count));
 }
 
 /**
- * Renders an empty state.
- * @param {string} type - Empty state type identifier.
+ * Builds skeleton card elements.
+ * @param {number} count - Number of skeleton cards to build.
+ * @returns {DocumentFragment} Fragment containing skeleton cards.
+ */
+function buildSkeletonFragment(count) {
+  const fragment = document.createDocumentFragment();
+
+  for (let i = 0; i < count; i++) {
+    fragment.appendChild(buildSkeletonCard());
+  }
+
+  return fragment;
+}
+
+/**
+ * Builds one skeleton task card.
+ * @returns {HTMLElement} Skeleton card element.
+ */
+function buildSkeletonCard() {
+  const card = createEl('div', 'task-card task-card--skeleton');
+
+  card.appendChild(createEl('div', 'skeleton-line skeleton-line--title'));
+  card.appendChild(createEl('div', 'skeleton-line skeleton-line--meta'));
+
+  return card;
+}
+
+/**
+ * Builds an empty state element for the given type.
+ * @param {string} type - Empty state type.
+ * @returns {HTMLElement} Empty state element.
+ */
+function renderEmptyStateElement(type) {
+  const config = getEmptyStateConfig(type);
+  const wrapper = createEl('div', 'empty-state');
+
+  wrapper.setAttribute('aria-live', 'polite');
+  wrapper.appendChild(createEl('p', 'empty-state__message', config.text));
+
+  if (config.action) {
+    wrapper.appendChild(buildEmptyStateAction(type, config.action));
+  }
+
+  return wrapper;
+}
+
+/**
+ * Gets empty state copy for a type.
+ * @param {string} type - Empty state type.
+ * @returns {Object} Empty state config.
+ */
+function getEmptyStateConfig(type) {
+  const messages = {
+    'no-projects': { text: 'Create your first project to get started', action: 'Create Project' },
+    'no-tasks': { text: 'No tasks yet. Create your first task', action: 'Add Task' },
+    'no-overdue': { text: 'Great job! You have no overdue tasks', action: null },
+    'no-tasks-today': { text: 'Nothing due today. Enjoy your day', action: null },
+    'no-upcoming': { text: 'No upcoming tasks scheduled', action: null },
+    'no-search-results': { text: 'No tasks match your search', action: null },
+  };
+
+  return messages[type] || { text: '', action: null };
+}
+
+/**
+ * Builds an empty state call-to-action button.
+ * @param {string} type - Empty state type.
+ * @param {string} action - Button text.
+ * @returns {HTMLButtonElement} Empty state button.
+ */
+function buildEmptyStateAction(type, action) {
+  const button = createEl('button', 'btn-primary empty-state__action', action);
+  button.type = 'button';
+  button.dataset.emptyAction = type;
+
+  return button;
+}
+
+/**
+ * Renders an empty state into the main task list container.
+ * @param {string} type - Empty state type.
  * @returns {void}
  */
 function renderEmptyState(type) {
-  // TODO: Session 5.
+  const container = document.getElementById('task-list');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(renderEmptyStateElement(type));
 }
 
 /**
- * Renders a dismissible error banner.
+ * Renders a dismissible error banner into the main task list container.
  * @param {string} message - Human-readable error message.
  * @returns {void}
  */
 function renderErrorBanner(message) {
-  // TODO: Session 5.
+  const container = document.getElementById('task-list');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildErrorBanner(message));
 }
 
 /**
- * Renders the notification panel.
+ * Renders a login-specific error message in the login card.
+ * @param {string} message - Human-readable sign-in error message.
+ * @returns {void}
+ */
+function renderLoginError(message) {
+  const error = document.getElementById('login-error');
+
+  if (!error) {
+    return;
+  }
+
+  error.textContent = message || '';
+  error.hidden = !message;
+}
+
+/**
+ * Builds an error banner element.
+ * @param {string} message - Human-readable error message.
+ * @returns {HTMLElement} Error banner element.
+ */
+function buildErrorBanner(message) {
+  const banner = createEl('div', 'error-banner');
+  const dismissBtn = createEl('button', 'error-banner__dismiss', 'Dismiss');
+
+  banner.setAttribute('role', 'alert');
+  banner.appendChild(createEl('p', 'error-banner__message', message));
+  dismissBtn.type = 'button';
+  dismissBtn.setAttribute('aria-label', 'Dismiss error message');
+  banner.appendChild(dismissBtn);
+
+  return banner;
+}
+
+/**
+ * Renders notifications inside the notification panel.
  * @param {Array} notifications - Notification objects to render.
  * @returns {void}
  */
 function renderNotificationPanel(notifications) {
-  // TODO: Session 5.
+  const container = document.getElementById('notification-panel');
+  const safeNotifications = notifications || [];
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildNotificationPanelHeader(safeNotifications));
+  container.appendChild(safeNotifications.length === 0
+    ? createEl('p', 'notification-empty', 'No notifications')
+    : buildNotificationList(safeNotifications));
 }
 
 /**
- * Renders the activity feed.
- * @param {Array} activities - Activity objects to render.
+ * Builds the notification panel header.
+ * @param {Array} notifications - Notification objects to render.
+ * @returns {HTMLElement} Notification panel header.
+ */
+function buildNotificationPanelHeader(notifications) {
+  const header = createEl('div', 'notification-panel__header');
+
+  header.appendChild(createEl('h2', 'notification-panel__title', 'Notifications'));
+
+  if (notifications.length > 0) {
+    header.appendChild(buildClearNotificationsButton());
+  }
+
+  return header;
+}
+
+/**
+ * Builds the clear-all notification button.
+ * @returns {HTMLButtonElement} Clear-all button.
+ */
+function buildClearNotificationsButton() {
+  const button = createEl('button', 'notification-panel__action', 'Clear all');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'clear-all';
+  button.setAttribute('aria-label', 'Clear all notifications');
+
+  return button;
+}
+
+/**
+ * Builds the notification list wrapper.
+ * @param {Array} notifications - Notification objects to render.
+ * @returns {HTMLElement} Notification list.
+ */
+function buildNotificationList(notifications) {
+  const list = createEl('div', 'notification-list');
+
+  list.appendChild(buildNotificationFragment(notifications));
+
+  return list;
+}
+
+/**
+ * Builds notification item elements.
+ * @param {Array} notifications - Notification objects to render.
+ * @returns {DocumentFragment} Fragment containing notification items.
+ */
+function buildNotificationFragment(notifications) {
+  const fragment = document.createDocumentFragment();
+
+  notifications.forEach((notification) => {
+    fragment.appendChild(buildNotificationItem(notification));
+  });
+
+  return fragment;
+}
+
+/**
+ * Builds a notification item.
+ * @param {Object} notification - Notification object.
+ * @returns {HTMLElement} Notification item element.
+ */
+function buildNotificationItem(notification) {
+  const item = createEl('div', 'notification-item');
+
+  if (!notification.read) {
+    item.classList.add('notification-item--unread');
+  }
+
+  if (notification.id) {
+    item.dataset.notificationId = notification.id;
+  }
+
+  if (notification.taskId) {
+    item.dataset.taskId = notification.taskId;
+  }
+
+  if (notification.projectId) {
+    item.dataset.projectId = notification.projectId;
+  }
+
+  item.appendChild(createEl('span', 'notification-item__type', getNotificationTypeLabel(notification.type)));
+  item.appendChild(createEl('p', 'notification-item__message', notification.message));
+  item.appendChild(createEl('span', 'notification-item__time', formatDate(notification.timestamp)));
+  item.appendChild(buildNotificationItemActions(notification));
+
+  return item;
+}
+
+/**
+ * Builds action controls for a notification item.
+ * @param {Object} notification - Notification object.
+ * @returns {HTMLElement} Notification action wrapper.
+ */
+function buildNotificationItemActions(notification) {
+  const actions = createEl('div', 'notification-item__actions');
+
+  if (!notification.read) {
+    actions.appendChild(buildMarkReadButton(notification));
+  }
+
+  return actions;
+}
+
+/**
+ * Builds the mark-as-read button for a notification.
+ * @param {Object} notification - Notification object.
+ * @returns {HTMLButtonElement} Mark-read button.
+ */
+function buildMarkReadButton(notification) {
+  const button = createEl('button', 'notification-item__button', 'Mark as read');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'mark-read';
+
+  if (notification.id) {
+    button.dataset.notificationId = notification.id;
+  }
+
+  button.setAttribute('aria-label', 'Mark notification as read');
+
+  return button;
+}
+
+/**
+ * Converts notification type values to readable labels.
+ * @param {string} type - Notification type.
+ * @returns {string} Readable notification type.
+ */
+function getNotificationTypeLabel(type) {
+  const labels = {
+    overdue: 'Overdue',
+    today: 'Due today',
+    task_completed: 'Completed',
+    task_created: 'Created',
+    system: 'System',
+  };
+
+  return labels[type] || 'System';
+}
+
+/**
+ * Renders dashboard in-app alert banners.
+ * @param {Array} alerts - Notification alert objects.
+ * @returns {void}
+ */
+function renderNotificationAlerts(alerts) {
+  const container = document.getElementById('notification-alerts');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  (alerts || []).forEach((alert) => container.appendChild(buildNotificationAlert(alert)));
+}
+
+/**
+ * Builds a dismissible dashboard notification alert.
+ * @param {Object} alert - Alert object to render.
+ * @returns {HTMLElement} Notification alert element.
+ */
+function buildNotificationAlert(alert) {
+  const banner = createEl('div', `notification-alert notification-alert--${alert.type || 'system'}`);
+
+  banner.setAttribute('role', 'alert');
+
+  if (alert.id) {
+    banner.dataset.notificationId = alert.id;
+  }
+
+  banner.appendChild(createEl('p', 'notification-alert__message', getNotificationAlertMessage(alert)));
+  banner.appendChild(buildNotificationAlertDismiss(alert));
+
+  return banner;
+}
+
+/**
+ * Builds alert copy from app-provided notification alert data.
+ * @param {Object} alert - Alert object.
+ * @returns {string} Alert message.
+ */
+function getNotificationAlertMessage(alert) {
+  if (alert.message) {
+    return alert.message;
+  }
+
+  if (alert.type === 'overdue') {
+    return `${alert.count || 0} tasks are overdue`;
+  }
+
+  if (alert.type === 'today') {
+    return `You have ${alert.count || 0} tasks due today`;
+  }
+
+  return 'Taskly notification';
+}
+
+/**
+ * Builds a dismiss button for an alert banner.
+ * @param {Object} alert - Alert object.
+ * @returns {HTMLButtonElement} Dismiss button.
+ */
+function buildNotificationAlertDismiss(alert) {
+  const button = createEl('button', 'notification-alert__dismiss', 'Dismiss');
+
+  button.type = 'button';
+  button.dataset.notificationAction = 'dismiss-alert';
+
+  if (alert.id) {
+    button.dataset.notificationId = alert.id;
+  }
+
+  button.setAttribute('aria-label', 'Dismiss notification alert');
+
+  return button;
+}
+
+/**
+ * Shows the notification panel.
+ * @returns {void}
+ */
+function showNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+
+  if (panel) {
+    panel.hidden = false;
+  }
+}
+
+/**
+ * Hides the notification panel.
+ * @returns {void}
+ */
+function hideNotificationPanel() {
+  const panel = document.getElementById('notification-panel');
+
+  if (panel) {
+    panel.hidden = true;
+  }
+}
+
+/**
+ * Renders the settings view contract.
+ * @param {Object} user - Authenticated user profile data.
+ * @param {string} notificationStatus - Browser notification permission status.
+ * @returns {void}
+ */
+function renderSettingsView(user, notificationStatus) {
+  const container = document.getElementById('view-settings');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(buildSettingsHeader());
+  container.appendChild(buildSettingsGrid(user || {}, notificationStatus || 'unknown'));
+}
+
+/**
+ * Builds the settings view header.
+ * @returns {HTMLElement} Settings header.
+ */
+function buildSettingsHeader() {
+  const header = createEl('header', 'settings__header');
+
+  header.appendChild(createEl('p', 'settings__eyebrow', 'Workspace preferences'));
+  header.appendChild(createEl('h2', 'settings__title', 'Settings'));
+  header.appendChild(createEl('p', 'settings__subtitle', 'Manage account details and app preferences.'));
+
+  return header;
+}
+
+/**
+ * Builds the settings section grid.
+ * @param {Object} user - Authenticated user profile data.
+ * @param {string} notificationStatus - Browser notification permission status.
+ * @returns {HTMLElement} Settings grid.
+ */
+function buildSettingsGrid(user, notificationStatus) {
+  const grid = createEl('div', 'settings-grid');
+
+  grid.appendChild(buildProfileSettingsSection(user));
+  grid.appendChild(buildNotificationSettingsSection(notificationStatus));
+  grid.appendChild(buildThemeSettingsSection());
+  grid.appendChild(buildAccountSettingsSection());
+
+  return grid;
+}
+
+/**
+ * Builds the settings profile section.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Profile settings section.
+ */
+function buildProfileSettingsSection(user) {
+  const section = buildSettingsCard('settings-profile', 'Profile', 'Google account used for Taskly.');
+  const profile = createEl('div', 'settings-profile');
+
+  profile.appendChild(buildSettingsAvatar(user));
+  profile.appendChild(buildSettingsProfileText(user));
+  section.appendChild(profile);
+
+  return section;
+}
+
+/**
+ * Builds the settings avatar element.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Avatar image or fallback.
+ */
+function buildSettingsAvatar(user) {
+  if (user.photoURL) {
+    return buildSettingsAvatarImage(user);
+  }
+
+  return createEl('div', 'settings-profile__avatar settings-profile__avatar--fallback', getInitials(user.displayName));
+}
+
+/**
+ * Builds a profile avatar image.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLImageElement} Profile image.
+ */
+function buildSettingsAvatarImage(user) {
+  const image = createEl('img', 'settings-profile__avatar');
+
+  image.src = user.photoURL;
+  image.alt = `${user.displayName || 'Taskly user'} profile photo`;
+
+  return image;
+}
+
+/**
+ * Gets initials for the profile fallback avatar.
+ * @param {string} name - User display name.
+ * @returns {string} Initials text.
+ */
+function getInitials(name) {
+  const safeName = name || 'Taskly user';
+  return safeName.trim().charAt(0).toUpperCase() || 'T';
+}
+
+/**
+ * Builds profile name and email text.
+ * @param {Object} user - Authenticated user profile data.
+ * @returns {HTMLElement} Profile text wrapper.
+ */
+function buildSettingsProfileText(user) {
+  const text = createEl('div', 'settings-profile__text');
+
+  text.appendChild(createEl('p', 'settings-profile__name', user.displayName || 'Taskly user'));
+  text.appendChild(createEl('p', 'settings-profile__email', user.email || 'No email available'));
+
+  return text;
+}
+
+/**
+ * Builds the notification settings section.
+ * @param {string} status - Browser notification permission status.
+ * @returns {HTMLElement} Notification settings section.
+ */
+function buildNotificationSettingsSection(status) {
+  const config = getNotificationStatusConfig(status);
+  const section = buildSettingsCard('settings-notifications', 'Notifications', config.message);
+
+  section.appendChild(buildSettingsStatus(config));
+  section.appendChild(buildNotificationSettingsAction(config));
+
+  return section;
+}
+
+/**
+ * Gets notification status presentation details.
+ * @param {string} status - Browser notification permission status.
+ * @returns {Object} Notification status configuration.
+ */
+function getNotificationStatusConfig(status) {
+  const configs = {
+    granted: { status: 'granted', label: 'Enabled', message: 'Browser notifications are enabled.', disabled: true },
+    denied: { status: 'denied', label: 'Disabled', message: 'Notifications are disabled in browser settings.', disabled: true },
+    default: { status: 'default', label: 'Not enabled', message: 'Notifications are not enabled yet.', disabled: false },
+    unsupported: { status: 'unsupported', label: 'Unsupported', message: 'Browser notifications are not supported.', disabled: true },
+    unknown: { status: 'unknown', label: 'Unknown', message: 'Notification status could not be determined.', disabled: false },
+  };
+
+  return configs[status] || configs.unknown;
+}
+
+/**
+ * Builds a settings status pill.
+ * @param {Object} config - Status presentation configuration.
+ * @returns {HTMLElement} Status pill.
+ */
+function buildSettingsStatus(config) {
+  return createEl('p', `settings-status settings-status--${config.status}`, config.label);
+}
+
+/**
+ * Builds the notification settings action control.
+ * @param {Object} config - Notification status configuration.
+ * @returns {HTMLButtonElement} Notification action button.
+ */
+function buildNotificationSettingsAction(config) {
+  const button = createEl('button', 'settings-action', getNotificationActionLabel(config.status));
+
+  button.type = 'button';
+  button.disabled = config.disabled;
+  button.dataset.settingsAction = 'notifications';
+  button.setAttribute('aria-label', 'Manage browser notifications');
+
+  return button;
+}
+
+/**
+ * Gets notification action button copy.
+ * @param {string} status - Notification status value.
+ * @returns {string} Button label.
+ */
+function getNotificationActionLabel(status) {
+  return status === 'default' || status === 'unknown' ? 'Notification status' : 'Managed in browser';
+}
+
+/**
+ * Builds the theme placeholder section.
+ * @returns {HTMLElement} Theme settings section.
+ */
+function buildThemeSettingsSection() {
+  const section = buildSettingsCard('settings-theme', 'Theme', 'Current theme: Light.');
+
+  section.appendChild(createEl('p', 'settings-status settings-status--default', 'Light'));
+  section.appendChild(buildThemePlaceholderButton());
+
+  return section;
+}
+
+/**
+ * Builds the disabled theme placeholder control.
+ * @returns {HTMLButtonElement} Theme placeholder button.
+ */
+function buildThemePlaceholderButton() {
+  const button = createEl('button', 'settings-action', 'Dark mode - Coming soon');
+
+  button.type = 'button';
+  button.disabled = true;
+  button.dataset.settingsAction = 'theme';
+  button.setAttribute('aria-label', 'Dark mode coming soon');
+
+  return button;
+}
+
+/**
+ * Builds the account settings section.
+ * @returns {HTMLElement} Account settings section.
+ */
+function buildAccountSettingsSection() {
+  const section = buildSettingsCard('settings-account', 'Account', 'Sign out after pending offline changes sync.');
+
+  section.appendChild(buildSettingsSignOutButton());
+
+  return section;
+}
+
+/**
+ * Builds the settings sign-out button.
+ * @returns {HTMLButtonElement} Sign-out button.
+ */
+function buildSettingsSignOutButton() {
+  const button = createEl('button', 'settings-action settings-action--danger', 'Sign out');
+
+  button.type = 'button';
+  button.dataset.settingsAction = 'sign-out';
+  button.setAttribute('aria-label', 'Sign out of Taskly');
+
+  return button;
+}
+
+/**
+ * Shows the sign-out confirmation modal.
+ * @param {Function} onConfirm - Callback for app.js to invoke after confirmation.
+ * @returns {void}
+ */
+function showSignOutConfirmModal(onConfirm) {
+  showConfirmModal('Sign out of Taskly? Unsaved offline changes may still be syncing.', onConfirm);
+}
+
+/**
+ * Builds a reusable settings card shell.
+ * @param {string} id - Section element ID.
+ * @param {string} titleText - Section title.
+ * @param {string} descriptionText - Section description.
+ * @returns {HTMLElement} Settings card section.
+ */
+function buildSettingsCard(id, titleText, descriptionText) {
+  const section = createEl('section', 'settings-card');
+  const header = createEl('div', 'settings-card__header');
+
+  section.id = id;
+  header.appendChild(createEl('h3', 'settings-card__title', titleText));
+  header.appendChild(createEl('p', 'settings-card__description', descriptionText));
+  section.appendChild(header);
+
+  return section;
+}
+
+/**
+ * Renders the recent activity feed.
+ * @param {Array} activities - Activity objects in display order.
  * @returns {void}
  */
 function renderActivityFeed(activities) {
-  // TODO: Session 5.
+  const container = document.getElementById('activity-feed');
+
+  if (!container) {
+    return;
+  }
+
+  clearContainer(container);
+  container.appendChild(activities.length === 0
+    ? createEl('p', 'activity-empty', 'No recent activity')
+    : buildActivityFragment(activities));
 }
 
 /**
- * Shows the add task modal.
+ * Builds activity feed item elements.
+ * @param {Array} activities - Activity objects in display order.
+ * @returns {DocumentFragment} Fragment containing activity items.
+ */
+function buildActivityFragment(activities) {
+  const fragment = document.createDocumentFragment();
+
+  activities.forEach((activity) => {
+    fragment.appendChild(buildActivityItem(activity));
+  });
+
+  return fragment;
+}
+
+/**
+ * Builds an activity feed item.
+ * @param {Object} activity - Activity object.
+ * @returns {HTMLElement} Activity item element.
+ */
+function buildActivityItem(activity) {
+  const labels = {
+    task_created: 'created task',
+    task_completed: 'completed task',
+    task_updated: 'updated task',
+    project_created: 'created project',
+  };
+  const item = createEl('li', 'activity-item');
+  const action = labels[activity.type] || 'updated';
+  const subject = activity.taskTitle || activity.projectName || '';
+
+  item.appendChild(createEl('span', 'activity-item__text', `${action} "${subject}"`));
+  item.appendChild(createEl('span', 'activity-item__time', formatDate(activity.timestamp)));
+
+  return item;
+}
+
+/**
+ * Hides the modal overlay and clears its content.
+ * @returns {void}
+ */
+function hideModal() {
+  const overlay = document.getElementById('modal-overlay');
+  const panel = document.getElementById('modal-panel');
+
+  if (!overlay || !panel) {
+    return;
+  }
+
+  overlay.hidden = true;
+  clearContainer(panel);
+}
+
+/**
+ * Shows the Add Task modal with an empty form.
  * @returns {void}
  */
 function showAddTaskModal() {
-  // TODO: Session 5.
+  showTaskModal('Add Task', {});
 }
 
 /**
- * Shows the edit task modal.
- * @param {Object} task - Task data to edit.
+ * Shows the Edit Task modal pre-filled with task data.
+ * @param {Object} task - Task data to pre-fill.
  * @returns {void}
  */
 function showEditTaskModal(task) {
-  // TODO: Session 5.
+  showTaskModal('Edit Task', task || {});
 }
 
 /**
- * Shows a confirmation modal.
- * @param {string} message - Confirmation message.
- * @param {Function} onConfirm - Callback to run after confirmation.
+ * Shows the Add Project modal with an empty name field.
+ * @returns {void}
+ */
+function showAddProjectModal() {
+  showProjectModal('Create Project', {}, 'create');
+}
+
+/**
+ * Shows the Edit Project modal with the current project name.
+ * @param {Object} project - Project data to pre-fill.
+ * @returns {void}
+ */
+function showEditProjectModal(project) {
+  showProjectModal('Rename Project', project || {}, 'edit');
+}
+
+/**
+ * Shows the shared project modal for create and rename flows.
+ * @param {string} titleText - Modal title text.
+ * @param {Object} project - Project data to pre-fill.
+ * @param {string} mode - Project modal mode for app.js wiring.
+ * @returns {void}
+ */
+function showProjectModal(titleText, project, mode) {
+  const panel = prepareModalPanel();
+
+  if (!panel) {
+    return;
+  }
+
+  panel.appendChild(buildModalTitle(titleText));
+  panel.appendChild(buildProjectForm(project, mode));
+  showModalOverlay();
+}
+
+/**
+ * Builds the project create or rename form.
+ * @param {Object} project - Project data to pre-fill.
+ * @param {string} mode - Project modal mode.
+ * @returns {HTMLFormElement} Project form.
+ */
+function buildProjectForm(project, mode) {
+  const form = createEl('form', 'project-modal');
+
+  form.dataset.projectMode = mode;
+
+  if (project.id) {
+    form.dataset.projectId = project.id;
+  }
+
+  appendProjectNameField(form, project.name || '');
+  appendProjectError(form);
+  form.appendChild(buildProjectFormActions());
+
+  return form;
+}
+
+/**
+ * Appends the project name field to the project form.
+ * @param {HTMLFormElement} form - Project form.
+ * @param {string} value - Current project name.
+ * @returns {void}
+ */
+function appendProjectNameField(form, value) {
+  const label = createEl('label', 'project-modal__field');
+  const labelText = createEl('span', 'form-label', 'Project name');
+  const input = createEl('input');
+
+  input.type = 'text';
+  input.name = 'projectName';
+  input.required = true;
+  input.maxLength = 80;
+  input.autocomplete = 'off';
+  input.value = value;
+  label.appendChild(labelText);
+  label.appendChild(input);
+  form.appendChild(label);
+}
+
+/**
+ * Shows a project modal validation message.
+ * @param {string} message - Human-readable validation message.
+ * @returns {void}
+ */
+function renderProjectModalValidation(message) {
+  setModalValidationMessage('[data-project-error="name"]', message);
+}
+
+/**
+ * Clears the project modal validation message.
+ * @returns {void}
+ */
+function clearProjectModalValidation() {
+  setModalValidationMessage('[data-project-error="name"]', '');
+}
+
+/**
+ * Appends project form validation message space.
+ * @param {HTMLFormElement} form - Project form.
+ * @returns {void}
+ */
+function appendProjectError(form) {
+  const error = createEl('p', 'project-modal__error');
+
+  error.dataset.projectError = 'name';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
+}
+
+/**
+ * Builds project form action buttons.
+ * @returns {HTMLElement} Actions wrapper.
+ */
+function buildProjectFormActions() {
+  const actions = createEl('div', 'modal-actions');
+  const cancelBtn = createEl('button', 'btn-ghost', 'Cancel');
+  const saveBtn = createEl('button', 'btn-primary', 'Save');
+
+  cancelBtn.type = 'button';
+  cancelBtn.dataset.modalAction = 'cancel';
+  saveBtn.type = 'submit';
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  return actions;
+}
+
+/**
+ * Shows a task modal with a shared task form.
+ * @param {string} titleText - Modal title.
+ * @param {Object} task - Task data to pre-fill.
+ * @returns {void}
+ */
+function showTaskModal(titleText, task) {
+  const panel = prepareModalPanel();
+
+  if (!panel) {
+    return;
+  }
+
+  panel.appendChild(buildModalTitle(titleText));
+  panel.appendChild(buildTaskForm(task));
+  showModalOverlay();
+}
+
+/**
+ * Shows a confirmation modal with the given message.
+ * @param {string} message - Confirmation message to display.
+ * @param {Function} onConfirm - Callback for app.js to invoke.
  * @returns {void}
  */
 function showConfirmModal(message, onConfirm) {
-  // TODO: Session 5.
+  const panel = prepareModalPanel();
+
+  if (!panel) {
+    return;
+  }
+
+  panel.appendChild(buildModalTitle('Confirm'));
+  panel.appendChild(createEl('p', 'modal-message', message));
+  panel.appendChild(buildConfirmActions(onConfirm));
+  showModalOverlay();
+}
+
+/**
+ * Clears and returns the modal panel.
+ * @returns {HTMLElement|null} Modal panel or null.
+ */
+function prepareModalPanel() {
+  const panel = document.getElementById('modal-panel');
+
+  if (!panel) {
+    return null;
+  }
+
+  clearContainer(panel);
+
+  return panel;
+}
+
+/**
+ * Shows the modal overlay.
+ * @returns {void}
+ */
+function showModalOverlay() {
+  const overlay = document.getElementById('modal-overlay');
+
+  if (overlay) {
+    overlay.hidden = false;
+  }
+}
+
+/**
+ * Builds a modal title element.
+ * @param {string} text - Modal title text.
+ * @returns {HTMLElement} Modal title.
+ */
+function buildModalTitle(text) {
+  const title = createEl('h2', 'modal-title', text);
+  title.id = 'modal-title';
+
+  return title;
+}
+
+/**
+ * Builds the task form used by Add and Edit task modals.
+ * @param {Object} task - Task data to pre-fill.
+ * @returns {HTMLFormElement} Task form.
+ */
+function buildTaskForm(task) {
+  const form = createEl('form', 'task-form');
+
+  appendTextField(form, 'Title', 'task-form-title', 'title', task.title || '', true);
+  appendTaskTitleError(form);
+  appendTextareaField(form, task.description || '');
+  appendDateField(form, task.dueDate || null);
+  appendTimeField(form, task.dueDate || null);
+  appendSelectField(form, 'Priority', 'task-form-priority', 'priority', getPriorityOptions(), task.priority || DEFAULT_PRIORITY);
+  appendSelectField(form, 'Category', 'task-form-category', 'category', getCategoryOptions(task.category || ''), task.category || '');
+  appendSelectField(form, 'Status', 'task-form-status', 'status', getStatusOptions(), task.status || STATUS_TODO);
+  form.appendChild(buildTaskFormActions());
+
+  return form;
+}
+
+/**
+ * Appends inline title validation space to the task form.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @returns {void}
+ */
+function appendTaskTitleError(form) {
+  const error = createEl('p', 'task-form__error');
+
+  error.dataset.taskError = 'title';
+  error.setAttribute('role', 'alert');
+  form.appendChild(error);
+}
+
+/**
+ * Shows a task modal validation message.
+ * @param {string} message - Human-readable validation message.
+ * @returns {void}
+ */
+function renderTaskModalValidation(message) {
+  setModalValidationMessage('[data-task-error="title"]', message);
+}
+
+/**
+ * Clears the task modal validation message.
+ * @returns {void}
+ */
+function clearTaskModalValidation() {
+  setModalValidationMessage('[data-task-error="title"]', '');
+}
+
+/**
+ * Sets inline modal validation text for an existing validation target.
+ * @param {string} selector - Validation target selector.
+ * @param {string} message - Message to render, or empty string to clear.
+ * @returns {void}
+ */
+function setModalValidationMessage(selector, message) {
+  const target = document.querySelector(selector);
+
+  if (target) {
+    target.textContent = message || '';
+  }
+}
+
+/**
+ * Appends a text input field to a form.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {string} labelText - Label text.
+ * @param {string} id - Input ID.
+ * @param {string} name - Input name.
+ * @param {string} value - Input value.
+ * @param {boolean} required - Whether the field is required.
+ * @returns {void}
+ */
+function appendTextField(form, labelText, id, name, value, required) {
+  const input = createEl('input');
+
+  input.type = 'text';
+  input.id = id;
+  input.name = name;
+  input.required = required;
+  input.maxLength = MAX_TITLE_LENGTH;
+  input.value = value;
+
+  appendLabeledControl(form, labelText, id, input);
+}
+
+/**
+ * Appends a textarea description field.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {string} value - Textarea value.
+ * @returns {void}
+ */
+function appendTextareaField(form, value) {
+  const textarea = createEl('textarea');
+
+  textarea.id = 'task-form-description';
+  textarea.name = 'description';
+  textarea.value = value;
+
+  appendLabeledControl(form, 'Description', textarea.id, textarea);
+}
+
+/**
+ * Appends a due date input field.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {Object|null} value - Existing due date.
+ * @returns {void}
+ */
+function appendDateField(form, value) {
+  const input = createEl('input');
+
+  input.type = 'date';
+  input.id = 'task-form-due-date';
+  input.name = 'dueDate';
+  input.value = formatInputDate(value);
+
+  appendLabeledControl(form, 'Due Date', input.id, input);
+}
+
+/**
+ * Appends a due time input field.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {Object|null} value - Existing due date.
+ * @returns {void}
+ */
+function appendTimeField(form, value) {
+  const input = createEl('input');
+
+  input.type = 'time';
+  input.id = 'task-form-due-time';
+  input.name = 'dueTime';
+  input.value = formatInputTime(value);
+
+  appendLabeledControl(form, 'Due Time', input.id, input);
+}
+
+/**
+ * Appends a select field to a form.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {string} labelText - Label text.
+ * @param {string} id - Select ID.
+ * @param {string} name - Select name.
+ * @param {Array} options - Select options.
+ * @param {string} selectedValue - Selected value.
+ * @returns {void}
+ */
+function appendSelectField(form, labelText, id, name, options, selectedValue) {
+  const select = createEl('select');
+
+  select.id = id;
+  select.name = name;
+  options.forEach((option) => select.appendChild(buildOption(option, selectedValue)));
+
+  appendLabeledControl(form, labelText, id, select);
+}
+
+/**
+ * Appends a label and control pair to a form.
+ * @param {HTMLFormElement} form - Form to append to.
+ * @param {string} labelText - Label text.
+ * @param {string} controlId - Associated control ID.
+ * @param {HTMLElement} control - Form control.
+ * @returns {void}
+ */
+function appendLabeledControl(form, labelText, controlId, control) {
+  const label = createEl('label', 'form-label', labelText);
+
+  label.setAttribute('for', controlId);
+  form.appendChild(label);
+  form.appendChild(control);
+}
+
+/**
+ * Builds an option element.
+ * @param {Object} optionConfig - Option value and label.
+ * @param {string} selectedValue - Selected value.
+ * @returns {HTMLOptionElement} Option element.
+ */
+function buildOption(optionConfig, selectedValue) {
+  const option = createEl('option', null, optionConfig.label);
+
+  option.value = optionConfig.value;
+  option.selected = optionConfig.value === selectedValue;
+
+  return option;
+}
+
+/**
+ * Gets priority select options.
+ * @returns {Array} Priority options.
+ */
+function getPriorityOptions() {
+  return ['none', 'low', 'medium', 'high'].map((value) => ({
+    value,
+    label: value.charAt(0).toUpperCase() + value.slice(1),
+  }));
+}
+
+/**
+ * Gets category select options.
+ * @param {string} selectedValue - Existing selected category.
+ * @returns {Array} Category options.
+ */
+function getCategoryOptions(selectedValue) {
+  const categoryOptions = CATEGORIES.map((value) => ({ value, label: value }));
+
+  if (selectedValue && !CATEGORIES.includes(selectedValue) && selectedValue !== 'custom') {
+    categoryOptions.push({ value: selectedValue, label: selectedValue });
+  }
+
+  return categoryOptions;
+}
+
+/**
+ * Gets status select options.
+ * @returns {Array} Status options.
+ */
+function getStatusOptions() {
+  return [
+    { value: STATUS_TODO, label: 'To do' },
+    { value: STATUS_PROGRESS, label: 'In progress' },
+    { value: STATUS_DONE, label: 'Done' },
+  ];
+}
+
+/**
+ * Builds Add/Edit task form action buttons.
+ * @returns {HTMLElement} Actions wrapper.
+ */
+function buildTaskFormActions() {
+  const actions = createEl('div', 'modal-actions');
+  const cancelBtn = createEl('button', 'btn-ghost', 'Cancel');
+  const saveBtn = createEl('button', 'btn-primary', 'Save');
+
+  cancelBtn.type = 'button';
+  cancelBtn.dataset.modalAction = 'cancel';
+  saveBtn.type = 'submit';
+  actions.appendChild(cancelBtn);
+  actions.appendChild(saveBtn);
+
+  return actions;
+}
+
+/**
+ * Builds confirmation modal action buttons.
+ * @param {Function} onConfirm - Callback for app.js to invoke.
+ * @returns {HTMLElement} Actions wrapper.
+ */
+function buildConfirmActions(onConfirm) {
+  const actions = createEl('div', 'modal-actions');
+  const cancelBtn = createEl('button', 'btn-ghost', 'Cancel');
+  const confirmBtn = createEl('button', 'btn-danger', 'Confirm');
+
+  cancelBtn.type = 'button';
+  cancelBtn.dataset.modalAction = 'cancel';
+  confirmBtn.type = 'button';
+  confirmBtn.dataset.modalAction = 'confirm';
+  confirmBtn.onConfirmCallback = onConfirm;
+  actions.appendChild(cancelBtn);
+  actions.appendChild(confirmBtn);
+
+  return actions;
 }
 
 /**
@@ -141,7 +2154,11 @@ function showConfirmModal(message, onConfirm) {
  * @returns {void}
  */
 function showOfflineBanner() {
-  // TODO: Session 5.
+  const banner = document.getElementById('offline-banner');
+
+  if (banner) {
+    banner.hidden = false;
+  }
 }
 
 /**
@@ -149,14 +2166,67 @@ function showOfflineBanner() {
  * @returns {void}
  */
 function hideOfflineBanner() {
-  // TODO: Session 5.
+  const banner = document.getElementById('offline-banner');
+
+  if (banner) {
+    banner.hidden = true;
+  }
 }
 
 /**
- * Updates the notification badge count.
+ * Updates the notification bell unread count badge.
  * @param {number} count - Unread notification count.
  * @returns {void}
  */
 function updateNotificationBadge(count) {
-  // TODO: Session 5.
+  const badge = document.getElementById('notif-count');
+
+  if (!badge) {
+    return;
+  }
+
+  badge.hidden = count <= 0;
+  badge.textContent = count <= 0 ? '0' : String(count);
 }
+
+/**
+ * Public UI API for script-tag module loading.
+ * @type {Object}
+ */
+window.ui = {
+  renderSidebar,
+  updateNavigationState,
+  renderSidebarUser,
+  renderProjectList,
+  renderProjectView,
+  renderTaskList,
+  renderTaskFilters,
+  updateActiveFilters,
+  renderTaskCard,
+  renderDashboard,
+  renderStats,
+  renderSkeletonCards,
+  renderEmptyState,
+  renderErrorBanner,
+  renderLoginError,
+  renderNotificationAlerts,
+  renderNotificationPanel,
+  renderSettingsView,
+  renderActivityFeed,
+  renderTaskModalValidation,
+  clearTaskModalValidation,
+  renderProjectModalValidation,
+  clearProjectModalValidation,
+  showAddProjectModal,
+  showEditProjectModal,
+  showAddTaskModal,
+  showEditTaskModal,
+  showConfirmModal,
+  showSignOutConfirmModal,
+  hideModal,
+  showNotificationPanel,
+  hideNotificationPanel,
+  showOfflineBanner,
+  hideOfflineBanner,
+  updateNotificationBadge,
+};
